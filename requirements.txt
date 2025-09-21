@@ -1,0 +1,8 @@
+Django
+djangorestframework
+psycopg2-binary
+requests
+python-dotenv
+gunicorn
+dj-database-url
+whitenoise

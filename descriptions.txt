@@ -1,0 +1,64 @@
+stack:
+    django
+    neon (postgres maya na ung part na to since acc ko to)
+    geoapify
+
+the goal of the app is to provide an app to the people about terminals and stuff
+if they start the webapp a button will appear saying start which will scan their gps location and show the nearest terminals in a 10km radius relative to their positions and the points will appear in the map in that 10 km radius
+
+each point is a terminal (it can be bus, jeep, tricycles, van and trains)
+when a point is clicked it will show what type of vehicle that terminal is
+think of it like a dictionary whereit can show their end locations and the corresponding price
+community driven for user submission
+route is hardcoded (sets of coordinates to construct a polyline)
+
+current databse:
+
+User
+- id
+- username, email, password
+
+Region
+- id
+- name
+
+City
+- id
+- name
+- region_id (FK → Region Table)
+
+Terminal
+- id
+- name (Actually Kahit ano to?, sinali lang for like if may pangalan ung terminal. ex jac liner, )
+- description (kung mag uupload ng burat si user)
+- coords_X
+- coords_Y
+- city_id (FK → City)
+- verified (boolean, default false) (kung legit actual terminal)
+- added_by (FK → User)
+- (ratings, addition based nalang to, like if may nag downvote minus 1 pwede mag niggative)
+
+ModeOfTransport
+- id
+- mode_name  -- ung sinabi ni anthoncakes
+- fare_type ENUM('fixed', 'distance_based')  (actually kaya meron neto para sa mga cases kung incremental ung fare based on km or like fixed kahit intermediate stop binabaan
+
+Route
+- id
+- terminal_id (FK → Terminal)  -- origin terminal
+- mode_id (FK → ModeOfTransport)
+- verified (boolean, default false)
+- added_by (FK → User, optional)
+- description (optional) (kung anong route to)
+- polyline (coords)
+
+RouteStop
+- id
+- route_id (FK → Route)
+- stop_name (text)  (stop description can be terminal or just a location basta kung san baba)
+- terminal_id (FK → Terminal, optional) (kung endpoint terminal)
+- fare (decimal)
+- distance
+- time
+- coords_X
+- coords_Y

@@ -31,8 +31,8 @@ Terminal
 - id
 - name (Actually Kahit ano to?, sinali lang for like if may pangalan ung terminal. ex jac liner, )
 - description (kung mag uupload ng burat si user)
-- coords_X
-- coords_Y
+- langtitude
+- longtitude
 - city_id (FK → City)
 - verified (boolean, default false) (kung legit actual terminal)
 - added_by (FK → User)
@@ -60,5 +60,28 @@ RouteStop
 - fare (decimal)
 - distance
 - time
-- coords_X
-- coords_Y
+- langtitude
+- longtitude
+
+things to note
+
+when doing the routing.
+
+1. Network as a graph
+- Each terminal (tricycle, bus, LRT, etc.) is a node.
+- Each hardcoded route (with its polyline and details) is an edge connecting two terminals.
+2. routing algorithm
+- When a user requests a route from their location to a destination:
+- Find nearest terminal to the user’s location (e.g., tricycle terminal).
+- Find nearest terminal to the destination (e.g., LRT station or TUP).
+- Use a graph algorithm (like Dijkstra’s) to find the best path through your network of terminals and routes.
+- The algorithm will select the sequence: tricycle → bus → LRT → walk.
+- Each leg uses your hardcoded polyline and details.
+- For first/last legs (if not at a terminal), use walking/driving directions (Geoapify or similar).
+
+flow
+User location → Tricycle terminal (walk, geoapify)
+Tricycle terminal → Binan bus terminal (tricycle, polyline)
+Binan bus terminal → LRT station (bus, polyline)
+LRT station → TUP (LRT, polyline)
+LRT station → TUP (walk, Geoapify)

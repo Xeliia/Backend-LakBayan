@@ -11,8 +11,60 @@ Before doing anything:
 
 To-Do:
 
+BACKEND CORE DEVELOPMENT:
 ( ) Create Models based dun sa table na ginawa sa descriptions.txt and migrate it
-( ) Create multiple API routes 
-    ( ) For account system
-    ( ) For sa terminal shits
-    ( ) Bahala na si batman
+    ( ) User model (extend Django User or custom)
+    ( ) Region model
+    ( ) City model  
+    ( ) Terminal model
+    ( ) ModeOfTransport model
+    ( ) Route model
+    ( ) RouteStop model
+    ( ) Run makemigrations and migrate
+
+take this part with a grain of salt. di ako sure pero baka maiba
+( ) Create API endpoints for data management
+    ( ) User authentication endpoints (register, login, logout)
+    ( ) Terminal CRUD endpoints
+        ( ) GET /api/terminals/nearby/?lat=<lat>&lng=<lng>&radius=25 (25km radius)
+        ( ) GET /api/terminals/<id>/ (terminal details)
+        ( ) POST /api/terminals/ (user contribution)
+        ( ) PUT /api/terminals/<id>/verify/ (admin verification)
+    ( ) Route endpoints
+        ( ) GET /api/routes/?terminal_id=<id> (routes from a terminal)
+        ( ) POST /api/routes/ (user route contribution)
+    ( ) Routing algorithm endpoint
+        ( ) POST /api/routes/calculate/ (custom Dijkstra implementation)
+
+( ) Implement custom routing algorithm
+    ( ) Create graph from terminals (nodes) and routes (edges)
+    ( ) Implement Dijkstra's algorithm for shortest path
+    ( ) Handle walking segments (≤5km) using Geoapify routing API
+    ( ) Return complete journey with: walking + terminals + polylines + fares
+
+( ) Admin interface setup
+    ( ) Register all models in admin.py
+    ( ) Create superuser account
+    ( ) Add verification workflow for user-contributed data
+
+DATA POPULATION (can start when frontend is ready):
+( ) Seed initial data
+    ( ) Add major regions and cities
+    ( ) Add basic mode of transport types
+    ( ) Add some verified terminals as examples
+
+INTEGRATION WITH FRONTEND:
+( ) API for map display
+    ( ) Endpoint to get terminals within 25km radius based on user GPS
+    ( ) Return terminal data with coordinates for map markers
+    
+( ) API for user contributions
+    ( ) Accept terminal data with coordinates from frontend map interaction
+    ( ) Store unverified user contributions
+    ( ) Provide endpoints for admin verification
+
+( ) Route calculation API
+    ( ) Accept origin/destination coordinates
+    ( ) Find nearest terminals to both points
+    ( ) Calculate optimal route using custom Dijkstra
+    ( ) Return complete journey with walking + transport segments

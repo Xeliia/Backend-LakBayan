@@ -17,6 +17,7 @@ current databse:
 User
 - id
 - username, email, password
+- created_at
 
 Region
 - id
@@ -31,12 +32,14 @@ Terminal
 - id
 - name (Actually Kahit ano to?, sinali lang for like if may pangalan ung terminal. ex jac liner, )
 - description (kung mag uupload ng burat si user)
-- langtitude
+- latitude
 - longtitude
 - city_id (FK → City)
 - verified (boolean, default false) (kung legit actual terminal)
 - added_by (FK → User)
 - (ratings, addition based nalang to, like if may nag downvote minus 1 pwede mag niggative)
+- created_at (timestamp)
+- updated_at (timestamp)
 
 ModeOfTransport
 - id
@@ -60,7 +63,7 @@ RouteStop
 - fare (decimal)
 - distance
 - time
-- langtitude
+- latitude
 - longtitude
 
 things to note

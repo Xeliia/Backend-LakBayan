@@ -38,6 +38,8 @@ take this part with a grain of salt. di ako sure pero baka maiba
          - PUT /api/accounts/profile/
          - PATCH /api/accounts/profile/
 
+    (  ) Implement Delete
+
     ( ✅ ) Apply sesion based token (JSON Web Token)
     ( ) Terminal CRUD endpoints
         ( ) GET /api/terminals/nearby/?lat=<lat>&lng=<lng>&radius=25 (25km radius) [ WAIT LANG TO KASI PWEDENG POSTGIS ]

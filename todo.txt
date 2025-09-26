@@ -29,8 +29,16 @@ BACKEND CORE DEVELOPMENT:
 
 take this part with a grain of salt. di ako sure pero baka maiba
 ( ) Create API endpoints for data management
-    ( ) User authentication endpoints (register, login, logout)
-    ( ) Apply sesion based token (JSON Web Token)
+    ( ✅ ) User authentication endpoints (register, login, logout)
+        endpoints:
+         - POST /api/accounts/register/
+         - POST /api/accounts/login/
+         - POST /api/accounts/logout/
+         - GET /api/accounts/profile/
+         - PUT /api/accounts/profile/
+         - PATCH /api/accounts/profile/
+
+    ( ✅ ) Apply sesion based token (JSON Web Token)
     ( ) Terminal CRUD endpoints
         ( ) GET /api/terminals/nearby/?lat=<lat>&lng=<lng>&radius=25 (25km radius) [ WAIT LANG TO KASI PWEDENG POSTGIS ]
         ( ) GET /api/terminals/ → list all terminals ( for premium users nalang to bwhahaha )

@@ -38,7 +38,8 @@ take this part with a grain of salt. di ako sure pero baka maiba
          - PUT /api/accounts/profile/
          - PATCH /api/accounts/profile/
 
-    (  ) Implement Delete
+    ( ✅ ) Implement Delete Account
+         - DELETE /api/accounts/delete-account/
 
     ( ✅ ) Apply sesion based token (JSON Web Token)
     ( ) Terminal CRUD endpoints

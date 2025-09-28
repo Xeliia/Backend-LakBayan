@@ -76,3 +76,16 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self): # type: ignore
         return self.request.user
+    
+class DeleteAccountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        password = request.data.get("password")
+        user = request.user
+
+        if not user.check_password(password):
+            return Response({"error": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.delete()
+        return Response({"message": "Account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)

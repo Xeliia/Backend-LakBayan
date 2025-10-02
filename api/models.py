@@ -42,6 +42,13 @@ class Terminal(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['latitude', 'longitude']),
+            models.Index(fields=['verified']),
+            models.Index(fields=['city']),
+        ]
+
     def __str__(self):
         return self.name or f"Terminal {self.id}" # type: ignore
     
@@ -93,6 +100,7 @@ class RouteStop(models.Model):
     fare = models.DecimalField(max_digits=10, decimal_places=2)
     distance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     time = models.IntegerField(null=True, blank=True)
+    order = models.PositiveIntegerField()
     latitude = models.DecimalField(
         max_digits=9, decimal_places=6,
         validators=[MinValueValidator(-90), MaxValueValidator(90)]
@@ -101,6 +109,10 @@ class RouteStop(models.Model):
         max_digits=9, decimal_places=6,
         validators=[MinValueValidator(-180), MaxValueValidator(180)]
     )
-    
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ('route', 'order')
+        
     def __str__(self):
-        return f"{self.stop_name} - {self.route}"
+        return f"Stop {self.order}: {self.stop_name} - {self.route}"

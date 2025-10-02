@@ -15,9 +15,8 @@ route is hardcoded (sets of coordinates to construct a polyline)
 current databse:
 
 User
-- id
-- username, email, password
-- created_at
+- Django na bahala
+- gagamit ng Django allauth 
 
 Region
 - id
@@ -49,6 +48,7 @@ ModeOfTransport
 Route
 - id
 - terminal_id (FK → Terminal)  -- origin terminal
+- destination (or the last coordinate in the routestop table)
 - mode_id (FK → ModeOfTransport)
 - verified (boolean, default false)
 - added_by (FK → User, optional)
@@ -58,6 +58,7 @@ Route
 RouteStop
 - id
 - route_id (FK → Route)
+- sequence
 - stop_name (text)  (stop description can be terminal or just a location basta kung san baba)
 - terminal_id (FK → Terminal, optional) (kung endpoint terminal)
 - fare (decimal)

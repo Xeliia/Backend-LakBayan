@@ -41,13 +41,15 @@ take this part with a grain of salt. di ako sure pero baka maiba
     ( ✅ ) Implement Delete Account
          - DELETE /api/accounts/delete-account/
 
+    (  ) Implement Email Verification (use Django allauth library)
+
     ( ✅ ) Apply sesion based token (JSON Web Token)
     ( ) Terminal CRUD endpoints
         ( ) GET /api/terminals/nearby/?lat=<lat>&lng=<lng>&radius=25 (25km radius) [ WAIT LANG TO KASI PWEDENG POSTGIS ]
         ( ) GET /api/terminals/ → list all terminals ( for premium users nalang to bwhahaha )
         ( ) GET /api/terminals/<id>/ (terminal details)
         ( ) POST /api/terminals/ (user contribution)
-        ( ) PUT /api/terminals/<id>/verify/ (admin verification)
+        ( ) PUT /api/terminals/<id>/verify/ (admin verification) (pwedeng Django admin nalang to)
     ( ) Route endpoints
         ( ) GET /api/routes/?terminal_id=<id> (routes from a terminal)
         ( ) POST /api/routes/ (user route contribution)

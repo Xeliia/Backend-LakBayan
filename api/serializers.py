@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from models import Region, City, Terminal, ModeOfTransport, Route, RouteStop
+from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

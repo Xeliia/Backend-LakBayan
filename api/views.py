@@ -123,11 +123,9 @@ def complete_data_export(request):
     
     # Serialize data
     regions_data = RegionSerializer(regions, many=True).data
-    transport_modes_data = ModeOfTransportSerializer(transport_modes, many=True).data
     
     response_data = {
         'regions': regions_data,
-        'transport_modes': transport_modes_data,
         'last_updated': last_updated,
         'total_terminals': total_terminals,
         'total_routes': total_routes,

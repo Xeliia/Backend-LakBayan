@@ -28,9 +28,9 @@ class TerminalAdmin(admin.ModelAdmin):
 
 @admin.register(ModeOfTransport)
 class ModeOfTransportAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mode_name', 'fare_type')
-    list_filter = ('fare_type',)
-    search_fields = ('mode_name',)
+    list_display = ['mode_name', 'fare_type', '__str__']
+    list_filter = ['mode_name', 'fare_type']
+    ordering = ['mode_name', 'fare_type']
 
 
 class RouteStopInline(admin.TabularInline):
@@ -39,21 +39,27 @@ class RouteStopInline(admin.TabularInline):
     fields = ('order', 'stop_name', 'terminal', 'fare', 'distance', 'time', 'latitude', 'longitude')
     ordering = ('order',)
 
-
 @admin.register(Route)
 class RouteAdmin(admin.ModelAdmin):
-    list_display = ('id', 'mode', 'terminal', 'verified', 'added_by')
-    list_filter = ('verified', 'mode')
-    search_fields = ('description', 'terminal__name')
+    list_display = ['__str__', 'mode', 'verified', 'added_by']
+    list_filter = ['mode', 'verified', 'terminal__city']
+    search_fields = ['terminal__name', 'destination_name', 'description']
     inlines = [RouteStopInline]
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "terminal":
+            kwargs["queryset"] = Terminal.objects.all()
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(RouteStop)
 class RouteStopAdmin(admin.ModelAdmin):
-    list_display = (
-        'id', 'route', 'order', 'stop_name',
-        'fare', 'distance', 'time', 'latitude', 'longitude'
-    )
-    list_filter = ('route',)
-    search_fields = ('stop_name',)
-    ordering = ('route', 'order')
+    list_display = ['route', 'order', 'stop_name', 'terminal', 'fare', 'latitude', 'longitude']
+    list_filter = ['route__terminal', 'terminal']
+    ordering = ['route', 'order']
+    
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "terminal":
+            # Make it clear that terminal is optional
+            kwargs["empty_label"] = "--- No Terminal (Regular Stop) ---"
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)

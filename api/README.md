@@ -1,5 +1,39 @@
 # LakBayan Backend API Documentation
 
+## Summary
+
+**LakBayan** is a comprehensive transportation data API for the Philippines that provides information about terminals, routes, and transportation modes across different regions and cities.
+
+### 🔐 **Accounts:**
+- `POST /accounts/register/` - Register new user account
+- `POST /accounts/login/` - Authenticate user and get JWT tokens
+- `POST /accounts/logout/` - Logout user and blacklist refresh token (requires auth)
+- `GET /accounts/profile/` - Get current user's profile (requires auth)
+- `PUT /accounts/profile/` - Update current user's profile (requires auth)
+- `PATCH /accounts/profile/` - Partially update current user's profile (requires auth)
+- `DELETE /accounts/delete/` - Permanently delete user account (requires auth)
+
+### 🚌 **Terminals:**
+- `GET /terminals/city/<city_id>/` - Get all verified terminals in a specific city
+- `GET /terminals/region/<region_id>/` - Get all verified terminals in a specific region
+- `GET /terminals/nearby/` - Get terminals within specified radius of coordinates (query params: lat, lng, radius)
+
+### 📊 **Data Export:**
+- `GET /complete/` - Export all verified transportation data (regions → cities → terminals → routes → route stops)
+- `GET /metadata/` - Get metadata about the transportation data (counts and last updated timestamp)
+
+---
+
+**Key Features:**
+- 🔐 **JWT Authentication** - Secure user accounts with access/refresh tokens
+- 🚌 **Terminal Management** - Search terminals by city, region, or proximity
+- 🗺️ **Nested Data Structure** - Complete transportation hierarchy from regions to individual route stops
+- ✅ **Verified Data Only** - Public endpoints return only verified terminals and routes
+- 📍 **Location-Based Search** - Find nearby terminals using coordinates and radius
+- 🇵🇭 **Philippine Focus** - Designed specifically for Philippine transportation systems
+
+---
+
 ## Base URL
 ```
 http://127.0.0.1:8000/api/
@@ -151,7 +185,7 @@ Authorization: Bearer <access_token>
 
 ### 1. Get Terminals by City
 **Endpoint:** `GET /terminals/city/<city_id>/`  
-**Description:** Get all verified terminals in a specific city  
+**Description:** Get all verified terminals in a specific city with their routes and stops  
 **Authentication:** Not required  
 
 **Example:** `GET /terminals/city/1/`
@@ -161,40 +195,50 @@ Authorization: Bearer <access_token>
 [
     {
         "id": 1,
-        "name": "EDSA Bus Terminal",
-        "description": "Main bus terminal for northbound trips",
-        "latitude": 14.6091,
-        "longitude": 121.0223,
+        "name": "Biñan Jac Liner Terminal",
+        "description": "Buses going to gil puyat and one ayala",
+        "latitude": "14.339165",
+        "longitude": "121.081884",
         "city": {
             "id": 1,
-            "name": "Quezon City",
+            "name": "Biñan",
             "region": 1
         },
         "verified": true,
-        "rating": 4.2,
+        "rating": 0,
         "routes": [
             {
                 "id": 1,
                 "mode": {
-                    "id": 1,
-                    "mode_name": "BUS",
-                    "mode_display": "Bus",
-                    "fare_type": "FIXED"
+                    "id": 3,
+                    "mode_name": "bus",
+                    "fare_type": "fixed"
                 },
                 "verified": true,
-                "description": "Quezon City to Baguio Route",
-                "polyline": "encoded_polyline_string...",
+                "description": "Papontang Gil Puyat LRT",
+                "polyline": null,
                 "stops": [
                     {
                         "id": 1,
-                        "stop_name": "EDSA Terminal",
-                        "fare": 450.00,
-                        "distance": 0.0,
-                        "time": 0,
+                        "stop_name": "Magallanes, Pasay",
+                        "fare": "66.00",
+                        "distance": "32.70",
+                        "time": 120,
                         "order": 1,
-                        "latitude": 14.6091,
-                        "longitude": 121.0223,
-                        "terminal": 1
+                        "latitude": "14.539757",
+                        "longitude": "121.017421",
+                        "terminal": null
+                    },
+                    {
+                        "id": 2,
+                        "stop_name": "LRT Buendia",
+                        "fare": "66.00",
+                        "distance": "33.40",
+                        "time": 130,
+                        "order": 2,
+                        "latitude": "14.554152",
+                        "longitude": "120.996629",
+                        "terminal": 3
                     }
                 ]
             }
@@ -222,24 +266,24 @@ Authorization: Bearer <access_token>
 - `lng` (required): Longitude  
 - `radius` (optional): Radius in kilometers (default: 25)
 
-**Example:** `GET /terminals/nearby/?lat=14.6091&lng=121.0223&radius=10`
+**Example:** `GET /terminals/nearby/?lat=14.3392&lng=121.0819&radius=10`
 
 **Response (200 OK):**
 ```json
 [
     {
         "id": 1,
-        "name": "EDSA Bus Terminal",
-        "description": "Main bus terminal for northbound trips",
-        "latitude": 14.6091,
-        "longitude": 121.0223,
+        "name": "Biñan Jac Liner Terminal",
+        "description": "Buses going to gil puyat and one ayala",
+        "latitude": "14.339165",
+        "longitude": "121.081884",
         "city": {
             "id": 1,
-            "name": "Quezon City",
+            "name": "Biñan",
             "region": 1
         },
         "verified": true,
-        "rating": 4.2,
+        "rating": 0,
         "routes": []
     }
 ]
@@ -267,90 +311,59 @@ Authorization: Bearer <access_token>
     "regions": [
         {
             "id": 1,
-            "name": "National Capital Region",
+            "name": "Laguna",
             "cities": [
                 {
                     "id": 1,
-                    "name": "Parañaque City",
+                    "name": "Biñan",
                     "region": 1,
                     "terminals": [
                         {
                             "id": 1,
-                            "name": "PITX (Parañaque Integrated Terminal Exchange)",
-                            "description": "Main terminal with multiple transport modes",
-                            "latitude": "14.507800",
-                            "longitude": "121.018700",
-                            "city": 1,
+                            "name": "Biñan Jac Liner Terminal",
+                            "description": "Buses going to gil puyat and one ayala",
+                            "latitude": "14.339165",
+                            "longitude": "121.081884",
+                            "city": {
+                                "id": 1,
+                                "name": "Biñan",
+                                "region": 1
+                            },
                             "verified": true,
-                            "rating": 5,
-                            "origin_routes": [
+                            "rating": 0,
+                            "routes": [
                                 {
                                     "id": 1,
                                     "mode": {
-                                        "id": 1,
+                                        "id": 3,
                                         "mode_name": "bus",
                                         "fare_type": "fixed"
                                     },
                                     "verified": true,
-                                    "description": "PITX to Baguio Bus Route",
+                                    "description": "Papontang Gil Puyat LRT",
                                     "polyline": null,
                                     "stops": [
                                         {
                                             "id": 1,
-                                            "stop_name": "PITX Terminal",
-                                            "terminal": 1,
-                                            "fare": "0.00",
-                                            "distance": "0.00",
-                                            "time": 0,
+                                            "stop_name": "Magallanes, Pasay",
+                                            "fare": "66.00",
+                                            "distance": "32.70",
+                                            "time": 120,
                                             "order": 1,
-                                            "latitude": "14.507800",
-                                            "longitude": "121.018700"
+                                            "latitude": "14.539757",
+                                            "longitude": "121.017421",
+                                            "terminal": null
                                         },
                                         {
                                             "id": 2,
-                                            "stop_name": "Baguio Terminal",
-                                            "terminal": 5,
-                                            "fare": "450.00",
-                                            "distance": "250.00",
-                                            "time": 360,
+                                            "stop_name": "LRT Buendia",
+                                            "fare": "66.00",
+                                            "distance": "33.40",
+                                            "time": 130,
                                             "order": 2,
-                                            "latitude": "16.407400",
-                                            "longitude": "120.596000"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "id": 2,
-                                    "mode": {
-                                        "id": 2,
-                                        "mode_name": "jeepney",
-                                        "fare_type": "distance_based"
-                                    },
-                                    "verified": true,
-                                    "description": "PITX to Alabang Jeepney Route",
-                                    "polyline": null,
-                                    "stops": [
-                                        {
-                                            "id": 3,
-                                            "stop_name": "PITX Terminal",
-                                            "terminal": 1,
-                                            "fare": "0.00",
-                                            "distance": "0.00",
-                                            "time": 0,
-                                            "order": 1,
-                                            "latitude": "14.507800",
-                                            "longitude": "121.018700"
-                                        },
-                                        {
-                                            "id": 4,
-                                            "stop_name": "Alabang Terminal",
-                                            "terminal": 3,
-                                            "fare": "15.00",
-                                            "distance": "8.50",
-                                            "time": 25,
-                                            "order": 2,
-                                            "latitude": "14.422200",
-                                            "longitude": "121.042100"
+                                            "latitude": "14.554152",
+                                            "longitude": "120.996629",
+                                            "terminal": 3
                                         }
                                     ]
                                 }
@@ -361,10 +374,10 @@ Authorization: Bearer <access_token>
             ]
         }
     ],
-    "last_updated": "2025-10-05T15:30:00.123456Z",
-    "total_terminals": 150,
-    "total_routes": 75,
-    "export_timestamp": "2025-10-05T15:35:00.123456Z"
+    "last_updated": "2025-10-05T09:07:49.786296Z",
+    "total_terminals": 3,
+    "total_routes": 1,
+    "export_timestamp": "2025-10-05T09:39:30.442051Z"
 }
 ```
 
@@ -376,9 +389,9 @@ Authorization: Bearer <access_token>
 **Response (200 OK):**
 ```json
 {
-    "last_updated": "2025-10-05T15:30:00.123456Z",
-    "total_terminals": 150,
-    "total_routes": 75
+    "last_updated": "2025-10-05T09:07:49.786296Z",
+    "total_terminals": 3,
+    "total_routes": 1
 }
 ```
 
@@ -433,6 +446,8 @@ Authorization: Bearer <access_token>
 - Coordinates are in decimal degrees (WGS84)
 - Distance calculations use simple bounding box approximation
 - All monetary values (fares) are in Philippine Pesos (PHP)
+- Time values in route stops are in minutes from origin
+- Route stops are ordered sequentially (order field)
 
 ---
 
@@ -456,4 +471,14 @@ Authorization: Bearer <access_token>
    ```bash
    curl -X GET http://127.0.0.1:8000/api/accounts/profile/ \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
+   ```
+
+4. **Get complete transportation data:**
+   ```bash
+   curl http://127.0.0.1:8000/api/complete/
+   ```
+
+5. **Find nearby terminals:**
+   ```bash
+   curl "http://127.0.0.1:8000/api/terminals/nearby/?lat=14.3392&lng=121.0819&radius=10"
    ```

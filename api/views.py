@@ -110,13 +110,10 @@ def complete_data_export(request):
     ).all()
     
     # Get transport modes
-    transport_modes = ModeOfTransport.objects.all()
+    terminal_last_updated = Terminal.objects.aggregate(Max('updated_at'))['updated_at__max']
     
     # Get metadata
-    last_updated = max(
-        Terminal.objects.aggregate(Max('updated_at'))['updated_at__max'] or timezone.now(),
-        Route.objects.aggregate(Max('created_at'))['created_at__max'] or timezone.now()
-    )
+    last_updated = terminal_last_updated or timezone.now()
     
     total_terminals = Terminal.objects.filter(verified=True).count()
     total_routes = Route.objects.filter(verified=True).count()
@@ -136,15 +133,15 @@ def complete_data_export(request):
 
 @api_view(['GET'])
 def data_export_metadata(request):
-    last_updated = max(
-        Terminal.objects.aggregate(Max('updated_at'))['updated_at__max'] or timezone.now(),
-        Route.objects.aggregate(Max('created_at'))['created_at__max'] or timezone.now()
-    )
+    last_updated = Terminal.objects.aggregate(Max('updated_at'))['updated_at__max'] or timezone.now()
+    
+    total_terminals = Terminal.objects.filter(verified=True).count()
+    total_routes = Route.objects.filter(verified=True).count()
     
     return Response({
         'last_updated': last_updated,
-        'total_terminals': Terminal.objects.filter(verified=True).count(),
-        'total_routes': Route.objects.filter(verified=True).count(),
+        'total_terminals': total_terminals,
+        'total_routes': total_routes,
     })
 
 #Terminals

@@ -68,29 +68,28 @@ class ModeOfTransport(models.Model):
         ('distance_based', 'Distance Based'),
     ]
 
-    mode_name = models.CharField(max_length=20, choices=MODE_CHOICES, unique=True)
+    mode_name = models.CharField(max_length=20, choices=MODE_CHOICES)
     fare_type = models.CharField(max_length=20, choices=FARE_TYPE_CHOICES)
 
+    class Meta:
+        unique_together = ('mode_name', 'fare_type')
+    
     def __str__(self):
-        return self.get_mode_name_display() # type: ignore
+        return f"{self.get_mode_name_display()} ({self.get_fare_type_display()})"
 
 # Route Table
 class Route(models.Model):
     terminal = models.ForeignKey('Terminal', on_delete=models.CASCADE, related_name='origin_routes')
+    destination_name = models.CharField(max_length=200)
     mode = models.ForeignKey('ModeOfTransport', on_delete=models.CASCADE, related_name='routes')
     verified = models.BooleanField(default=False)
-    added_by = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True, 
-        related_name='added_routes'
-    )
+    added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_routes')
     description = models.TextField(blank=True, null=True)
     polyline = models.JSONField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.mode.get_mode_name_display()} from {self.terminal.name or f'Terminal {self.terminal.id}'}"
+        origin_name = self.terminal.name or f'Terminal {self.terminal.id}'
+        return f"{origin_name} → {self.destination_name} ({self.mode})"
 
 # Route Stop Tables
 class RouteStop(models.Model):

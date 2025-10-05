@@ -258,7 +258,7 @@ Authorization: Bearer <access_token>
 
 ### 1. Complete Data Export
 **Endpoint:** `GET /complete/`  
-**Description:** Export all verified transportation data including regions, cities, terminals, and routes  
+**Description:** Export all verified transportation data with proper nesting: regions → cities → terminals → routes → route stops  
 **Authentication:** Not required  
 
 **Response (200 OK):**
@@ -271,41 +271,94 @@ Authorization: Bearer <access_token>
             "cities": [
                 {
                     "id": 1,
-                    "name": "Quezon City",
+                    "name": "Parañaque City",
                     "region": 1,
                     "terminals": [
                         {
                             "id": 1,
-                            "name": "EDSA Bus Terminal",
-                            "description": "Main bus terminal",
-                            "latitude": 14.6091,
-                            "longitude": 121.0223,
-                            "city": {
-                                "id": 1,
-                                "name": "Quezon City",
-                                "region": 1
-                            },
+                            "name": "PITX (Parañaque Integrated Terminal Exchange)",
+                            "description": "Main terminal with multiple transport modes",
+                            "latitude": "14.507800",
+                            "longitude": "121.018700",
+                            "city": 1,
                             "verified": true,
-                            "rating": 4.2,
-                            "routes": []
+                            "rating": 5,
+                            "origin_routes": [
+                                {
+                                    "id": 1,
+                                    "mode": {
+                                        "id": 1,
+                                        "mode_name": "bus",
+                                        "fare_type": "fixed"
+                                    },
+                                    "verified": true,
+                                    "description": "PITX to Baguio Bus Route",
+                                    "polyline": null,
+                                    "stops": [
+                                        {
+                                            "id": 1,
+                                            "stop_name": "PITX Terminal",
+                                            "terminal": 1,
+                                            "fare": "0.00",
+                                            "distance": "0.00",
+                                            "time": 0,
+                                            "order": 1,
+                                            "latitude": "14.507800",
+                                            "longitude": "121.018700"
+                                        },
+                                        {
+                                            "id": 2,
+                                            "stop_name": "Baguio Terminal",
+                                            "terminal": 5,
+                                            "fare": "450.00",
+                                            "distance": "250.00",
+                                            "time": 360,
+                                            "order": 2,
+                                            "latitude": "16.407400",
+                                            "longitude": "120.596000"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "id": 2,
+                                    "mode": {
+                                        "id": 2,
+                                        "mode_name": "jeepney",
+                                        "fare_type": "distance_based"
+                                    },
+                                    "verified": true,
+                                    "description": "PITX to Alabang Jeepney Route",
+                                    "polyline": null,
+                                    "stops": [
+                                        {
+                                            "id": 3,
+                                            "stop_name": "PITX Terminal",
+                                            "terminal": 1,
+                                            "fare": "0.00",
+                                            "distance": "0.00",
+                                            "time": 0,
+                                            "order": 1,
+                                            "latitude": "14.507800",
+                                            "longitude": "121.018700"
+                                        },
+                                        {
+                                            "id": 4,
+                                            "stop_name": "Alabang Terminal",
+                                            "terminal": 3,
+                                            "fare": "15.00",
+                                            "distance": "8.50",
+                                            "time": 25,
+                                            "order": 2,
+                                            "latitude": "14.422200",
+                                            "longitude": "121.042100"
+                                        }
+                                    ]
+                                }
+                            ]
                         }
                     ]
                 }
             ]
-        }
-    ],
-    "transport_modes": [
-        {
-            "id": 1,
-            "mode_name": "BUS",
-            "mode_display": "Bus",
-            "fare_type": "FIXED"
-        },
-        {
-            "id": 2,
-            "mode_name": "JEEPNEY",
-            "mode_display": "Jeepney",
-            "fare_type": "DISTANCE"
         }
     ],
     "last_updated": "2025-10-05T15:30:00.123456Z",

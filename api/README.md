@@ -337,6 +337,7 @@ Authorization: Bearer <access_token>
                                     "mode": {
                                         "id": 3,
                                         "mode_name": "bus",
+                                        "mode_display": "Bus",
                                         "fare_type": "fixed"
                                     },
                                     "verified": true,
@@ -368,6 +369,56 @@ Authorization: Bearer <access_token>
                                     ]
                                 }
                             ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "id": 2,
+            "name": "National Capital Region",
+            "cities": [
+                {
+                    "id": 2,
+                    "name": "Makati",
+                    "region": 2,
+                    "terminals": [
+                        {
+                            "id": 2,
+                            "name": "One Ayala Terminal",
+                            "description": "Massive Terminal",
+                            "latitude": "14.549810",
+                            "longitude": "121.028399",
+                            "city": {
+                                "id": 2,
+                                "name": "Makati",
+                                "region": 2
+                            },
+                            "verified": true,
+                            "rating": 0,
+                            "routes": []
+                        }
+                    ]
+                },
+                {
+                    "id": 3,
+                    "name": "Pasay",
+                    "region": 2,
+                    "terminals": [
+                        {
+                            "id": 3,
+                            "name": "Jac Liner Gil Puyat",
+                            "description": "Bus papuntang probinsya (Laguna, at batangas)",
+                            "latitude": "14.554152",
+                            "longitude": "120.996629",
+                            "city": {
+                                "id": 3,
+                                "name": "Pasay",
+                                "region": 2
+                            },
+                            "verified": true,
+                            "rating": 0,
+                            "routes": []
                         }
                     ]
                 }

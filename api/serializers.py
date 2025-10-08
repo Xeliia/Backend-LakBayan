@@ -125,3 +125,53 @@ class RegionSerializer(serializers.ModelSerializer):
             'terminals__origin_routes__stops'
         )
         return CitySerializer(cities, many=True).data
+    
+# User Contribution
+
+class TerminalContributionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Terminal
+        fields = [
+            'name', 'description', 'latitude', 'longitude', 'city'
+        ]
+
+    def validate_latitude(self, value):
+        if not (-90 <= value <= 90):
+            raise serializers.ValidationError("Latitude must be between -90 and 90")
+        return value
+
+    def validate_longitude(self, value):
+        if not (-180 <= value <= 180):
+            raise serializers.ValidationError("Longitude must be between -180 and 180")
+        return value
+
+class RouteContributionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Route
+        fields = [
+            'terminal', 'destination_name', 'mode', 'description', 'polyline'
+        ]
+
+    def validate_terminal(self, value):
+        if not value.verified:
+            raise serializers.ValidationError("Can only add routes to verified terminals")
+        return value
+
+class RouteStopContributionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RouteStop
+        fields = [
+            'route', 'stop_name', 'terminal', 'fare', 'distance', 
+            'time', 'order', 'latitude', 'longitude'
+        ]
+
+    def validate_route(self, value):
+        if not value.verified:
+            raise serializers.ValidationError("Can only add stops to verified routes")
+        return value
+
+    def validate_order(self, value):
+        route = self.initial_data.get('route') # type: ignore
+        if route and RouteStop.objects.filter(route=route, order=value).exists():
+            raise serializers.ValidationError("A stop with this order already exists for this route")
+        return value

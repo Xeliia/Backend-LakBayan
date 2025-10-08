@@ -4,18 +4,23 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
 from django.db.models import Max
-from .models import Terminal, Region, Route, ModeOfTransport
+from django.db import transaction
+from .models import Terminal, Region, Route, ModeOfTransport, City, RouteStop
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
     UserProfileSerializer,
     RegionSerializer,
     ModeOfTransportSerializer,
-    TerminalSerializer
+    TerminalSerializer,
+    RouteSerializer,
+    RouteStopSerializer,
+    TerminalContributionSerializer,
+    RouteContributionSerializer,
+    RouteStopContributionSerializer,
 )
 
 #Account System
@@ -197,3 +202,196 @@ def nearby_terminals(request):
     
     serializer = TerminalSerializer(terminals, many=True)
     return Response(serializer.data)
+
+# Seperate Exports
+@api_view(['GET'])
+def export_regions_cities(request):
+    regions = Region.objects.prefetch_related("city_set").all()
+    data = RegionSerializer(regions, many=True).data
+    return Response({
+        "regions": data,
+        "export_timestamp": timezone.now()
+    })
+
+
+# 2. Terminals
+@api_view(['GET'])
+def export_terminals(request):
+    terminals = Terminal.objects.select_related("city__region").prefetch_related(
+        "origin_routes__mode",
+        "origin_routes__stops"
+    ).all()
+    data = TerminalSerializer(terminals, many=True).data
+    return Response({
+        "terminals": data,
+        "last_updated": Terminal.objects.aggregate(Max("updated_at"))["updated_at__max"],
+        "export_timestamp": timezone.now()
+    })
+
+
+# 3. Routes + Stops
+@api_view(['GET'])
+def export_routes_stops(request):
+    routes = Route.objects.prefetch_related("stops", "mode", "terminal").all()
+    data = RouteSerializer(routes, many=True).data
+    return Response({
+        "routes": data,
+        "export_timestamp": timezone.now()
+    })
+
+# User Contribution
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contribute_terminal(request):
+    """Allow users to contribute new terminals"""
+    serializer = TerminalContributionSerializer(data=request.data)
+    if serializer.is_valid():
+        # Auto-set fields according to your model
+        terminal = serializer.save(
+            added_by=request.user,
+            verified=False,  # Admin will verify later
+            rating=0  # Default rating
+        )
+        return Response({
+            'message': 'Terminal contribution submitted successfully',
+            'terminal_id': terminal.id, # type: ignore
+            'status': 'pending_verification',
+            'data': TerminalContributionSerializer(terminal).data
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contribute_route(request):
+    """Allow users to contribute new routes to verified terminals"""
+    serializer = RouteContributionSerializer(data=request.data)
+    if serializer.is_valid():
+        route = serializer.save(
+            added_by=request.user,
+            verified=False  # Admin will verify later
+        )
+        return Response({
+            'message': 'Route contribution submitted successfully',
+            'route_id': route.id, # type: ignore
+            'status': 'pending_verification',
+            'data': RouteContributionSerializer(route).data
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contribute_route_stop(request):
+    """Allow users to contribute new stops to verified routes"""
+    serializer = RouteStopContributionSerializer(data=request.data)
+    if serializer.is_valid():
+        # No added_by field for RouteStop as per your model
+        route_stop = serializer.save()
+        return Response({
+            'message': 'Route stop contribution submitted successfully',
+            'stop_id': route_stop.id, # type: ignore
+            'data': RouteStopContributionSerializer(route_stop).data
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def contribute_complete_route(request):
+    """Allow users to contribute a route with multiple stops in one request"""
+    route_data = request.data.get('route', {})
+    stops_data = request.data.get('stops', [])
+    
+    if not route_data:
+        return Response({'error': 'Route data is required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        with transaction.atomic():
+            # Create the route
+            route_serializer = RouteContributionSerializer(data=route_data)
+            if route_serializer.is_valid():
+                route = route_serializer.save(
+                    added_by=request.user,
+                    verified=False
+                )
+                
+                # Create the stops
+                created_stops = []
+                for stop_data in stops_data:
+                    stop_data['route'] = route.id # type: ignore
+                    stop_serializer = RouteStopContributionSerializer(data=stop_data)
+                    if stop_serializer.is_valid():
+                        stop = stop_serializer.save()
+                        created_stops.append(stop)
+                    else:
+                        return Response({
+                            'error': 'Invalid stop data',
+                            'stop_errors': stop_serializer.errors
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                
+                return Response({
+                    'message': 'Complete route with stops submitted successfully',
+                    'route_id': route.id, # type: ignore
+                    'stops_count': len(created_stops),
+                    'status': 'pending_verification'
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response({
+                    'error': 'Invalid route data',
+                    'route_errors': route_serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+    except Exception as e:
+        return Response({
+            'error': 'Failed to create route with stops',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# User's Contributions
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_contributions(request):
+    """Get current user's contributions"""
+    terminals = Terminal.objects.filter(added_by=request.user).select_related('city__region')
+    routes = Route.objects.filter(added_by=request.user).select_related('terminal', 'mode')
+    
+    return Response({
+        'terminals': {
+            'data': TerminalContributionSerializer(terminals, many=True).data,
+            'total': terminals.count(),
+            'verified': terminals.filter(verified=True).count(),
+            'pending': terminals.filter(verified=False).count(),
+        },
+        'routes': {
+            'data': RouteContributionSerializer(routes, many=True).data,
+            'total': routes.count(),
+            'verified': routes.filter(verified=True).count(),
+            'pending': routes.filter(verified=False).count(),
+        },
+        'summary': {
+            'total_contributions': terminals.count() + routes.count(),
+            'verified_contributions': terminals.filter(verified=True).count() + routes.filter(verified=True).count(),
+        }
+    })
+
+# Helper endpoints
+@api_view(['GET'])
+def get_cities_by_region(request, region_id):
+    """Get cities in a specific region for the contribution form"""
+    cities = City.objects.filter(region_id=region_id)
+    return Response([
+        {'id': city.id, 'name': city.name}  # type: ignore
+        for city in cities
+    ])
+
+@api_view(['GET'])
+def get_transport_modes(request):
+    """Get available transport modes for the contribution form"""
+    modes = ModeOfTransport.objects.all()
+    return Response([
+        {
+            'id': mode.id,  # type: ignore
+            'name': mode.get_mode_name_display(), # type: ignore
+            'fare_type': mode.get_fare_type_display() # type: ignore
+        } 
+        for mode in modes
+    ])

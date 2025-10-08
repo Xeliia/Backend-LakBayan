@@ -75,7 +75,7 @@ class ModeOfTransport(models.Model):
         unique_together = ('mode_name', 'fare_type')
     
     def __str__(self):
-        return f"{self.get_mode_name_display()} ({self.get_fare_type_display()})"
+        return f"{self.get_mode_name_display()} ({self.get_fare_type_display()})" # type: ignore
 
 # Route Table
 class Route(models.Model):

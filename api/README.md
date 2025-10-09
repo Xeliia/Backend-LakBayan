@@ -593,7 +593,110 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 5. My Contributions
+### 5. Contribute Everything (Terminal + Route + Stops) ⭐ **NEW**
+**Endpoint:** `POST /contribute/everything/`  
+**Description:** Submit complete transportation data: terminal, route, and stops all together  
+**Authentication:** Required + Email Verified  
+
+**Use Case:** When user wants to add a completely new terminal with its routes and stops
+
+**Request Body:**
+```json
+{
+    "terminal": {
+        "name": "New Complete Terminal",
+        "description": "Brand new terminal with complete route info",
+        "latitude": 14.1234,
+        "longitude": 121.1234,
+        "city": 1
+    },
+    "route": {
+        "destination_name": "Final Destination",
+        "mode": 3,
+        "description": "Complete route description",
+        "polyline": null
+    },
+    "stops": [
+        {
+            "stop_name": "First Stop",
+            "fare": 25.00,
+            "distance": 5.0,
+            "time": 30,
+            "order": 1,
+            "latitude": 14.1111,
+            "longitude": 121.1111,
+            "terminal": null
+        },
+        {
+            "stop_name": "Second Stop",
+            "fare": 45.00,
+            "distance": 15.0,
+            "time": 60,
+            "order": 2,
+            "latitude": 14.2222,
+            "longitude": 121.2222,
+            "terminal": null
+        },
+        {
+            "stop_name": "Final Stop",
+            "fare": 75.00,
+            "distance": 25.0,
+            "time": 90,
+            "order": 3,
+            "latitude": 14.3333,
+            "longitude": 121.3333,
+            "terminal": null
+        }
+    ]
+}
+```
+
+**Response (201 Created):**
+```json
+{
+    "message": "Complete transportation data submitted successfully",
+    "status": "pending_verification",
+    "data": {
+        "terminal_id": 45,
+        "route_id": 30,
+        "stops_count": 3,
+        "terminal_name": "New Complete Terminal",
+        "route_destination": "Final Destination",
+        "all_unverified": true,
+        "note": "All submissions require admin approval before becoming public"
+    }
+}
+```
+
+**Error Responses:**
+
+**Missing Required Structure (400 Bad Request):**
+```json
+{
+    "error": "Required structure: {\"terminal\": {...}, \"route\": {...}, \"stops\": [...]}"
+}
+```
+
+**Invalid Terminal Data (400 Bad Request):**
+```json
+{
+    "error": "Invalid terminal data",
+    "terminal_errors": {
+        "name": ["This field is required"],
+        "latitude": ["Latitude must be between -90 and 90"]
+    }
+}
+```
+
+**Validation Requirements:**
+- **Terminal**: Same as individual terminal contribution
+- **Route**: Same as individual route contribution (but terminal will be auto-assigned)
+- **Stops**: Same as individual stop contribution (but route will be auto-assigned)
+- **All data**: Automatically marked as unverified regardless of input
+- **Atomic transaction**: If any part fails, entire submission is rolled back
+
+
+### 6. My Contributions
 **Endpoint:** `GET /my-contributions/`  
 **Description:** View your contribution history and status  
 **Authentication:** Required  
@@ -636,6 +739,17 @@ Authorization: Bearer <access_token>
 }
 ```
 
+
+### 🎯 **Contribution Types Summary:**
+
+| Endpoint | Purpose | Requirements | What's Created |
+|----------|---------|--------------|----------------|
+| `/contribute/terminal/` | Add new terminal only | None | Unverified terminal |
+| `/contribute/route/` | Add route to existing terminal | Verified terminal | Unverified route |
+| `/contribute/stop/` | Add stop to existing route | Verified route | Unverified stop |
+| `/contribute/complete-route/` | Add route + stops to terminal | Verified terminal | Unverified route + stops |
+| `/contribute/everything/` ⭐ | Add terminal + route + stops | None | All unverified |
+
 ### Contribution Workflow:
 1. **User registers** → Verification email sent automatically
 2. **User verifies email** → Can now contribute
@@ -648,7 +762,8 @@ Authorization: Bearer <access_token>
 - **Admin approval required** before contributions become public
 - **Sequential stop ordering** enforced for route stops
 - **Geographic validation** ensures valid coordinates
-- **Only verified terminals/routes** can have new routes/stops added
+- **Atomic operations** ensure data consistency
+- **Auto-linking** in `/contribute/everything/` connects terminal → route → stops
 - **User can track status** of all their contributions
 
 ---

@@ -28,6 +28,7 @@ urlpatterns = [
     path('contribute/route/', views.contribute_route, name='contribute-route'),
     path('contribute/stop/', views.contribute_route_stop, name='contribute-stop'),
     path('contribute/complete-route/', views.contribute_complete_route, name='contribute-complete-route'),
+    path('contribute/contribute-all/', views.contribute_all, name='contribute-all'),
     path('my-contributions/', views.my_contributions, name='my-contributions'),
     
     # Helper

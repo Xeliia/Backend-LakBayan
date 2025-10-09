@@ -381,6 +381,107 @@ def contribute_complete_route(request):
             'error': 'Failed to create route with stops',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@email_verified_required
+def contribute_all(request):
+    """
+    Submit terminal, route, and stops all together
+    Everything will be marked as unverified and require admin approval
+    """
+    data = request.data
+    
+    # Validate required structure
+    if not all(key in data for key in ['terminal', 'route', 'stops']):
+        return Response({
+            'error': 'Required structure: {"terminal": {...}, "route": {...}, "stops": [...]}'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not isinstance(data['stops'], list) or len(data['stops']) == 0:
+        return Response({
+            'error': 'At least one stop is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        with transaction.atomic():
+            # 1. Create Terminal (unverified)
+            terminal_data = data['terminal'].copy()
+            # Don't set added_by in data - set it during save()
+            
+            terminal_serializer = TerminalContributionSerializer(data=terminal_data)
+            if not terminal_serializer.is_valid():
+                return Response({
+                    'error': 'Invalid terminal data',
+                    'terminal_errors': terminal_serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save terminal with proper fields
+            terminal = terminal_serializer.save(
+                added_by=request.user,
+                verified=False,
+                rating=0
+            )
+            
+            # 2. Create Route (unverified) linked to new terminal
+            route_data = data['route'].copy()
+            route_data['terminal'] = terminal.id  # Now terminal.id exists
+            # Don't set added_by in data - set it during save()
+            
+            route_serializer = RouteContributionSerializer(data=route_data)
+            if not route_serializer.is_valid():
+                return Response({
+                    'error': 'Invalid route data',
+                    'route_errors': route_serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save route with proper fields
+            route = route_serializer.save(
+                added_by=request.user,
+                verified=False
+            )
+            
+            # 3. Create Stops (all unverified) linked to new route
+            created_stops = []
+            for i, stop_data in enumerate(data['stops']):
+                stop_data_copy = stop_data.copy()
+                stop_data_copy['route'] = route.id  # Now route.id exists
+                # Don't set added_by for RouteStop - it doesn't have that field
+                
+                # Ensure order is set correctly if not provided
+                if 'order' not in stop_data_copy:
+                    stop_data_copy['order'] = i + 1
+                
+                stop_serializer = RouteStopContributionSerializer(data=stop_data_copy)
+                if not stop_serializer.is_valid():
+                    return Response({
+                        'error': f'Invalid stop data at index {i}',
+                        'stop_errors': stop_serializer.errors
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Save stop (RouteStop doesn't have added_by or verified fields)
+                stop = stop_serializer.save()
+                created_stops.append(stop)
+            
+            return Response({
+                'message': 'Complete transportation data submitted successfully',
+                'status': 'pending_verification',
+                'data': {
+                    'terminal_id': terminal.id,
+                    'route_id': route.id,
+                    'stops_count': len(created_stops),
+                    'terminal_name': terminal.name,
+                    'route_destination': route.destination_name,
+                    'all_unverified': True,
+                    'note': 'All submissions require admin approval before becoming public'
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+    except Exception as e:
+        return Response({
+            'error': 'Failed to create complete transportation data',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # User's Contributions
 @api_view(['GET'])

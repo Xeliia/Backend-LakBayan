@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from allauth.account.models import EmailAddress
 from functools import wraps
 from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
@@ -31,6 +32,11 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        email_address, _ = EmailAddress.objects.get_or_create(
+            user=user, email=user.email, defaults={'primary': True}
+        )
+        if not email_address.verified:
+            email_address.send_confirmation(request, signup=True)
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
 
@@ -126,7 +132,7 @@ class DeleteAccountView(APIView):
             return Response({"error": "Incorrect password"}, status=status.HTTP_400_BAD_REQUEST)
 
         user.delete()
-        return Response({"message": "Account deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        return Response({"message": "Account deleted successfully"}, status=status.HTTP_200_OK)
     
 
 #Export All Data
@@ -213,7 +219,7 @@ def nearby_terminals(request):
     
     # Simple bounding box filter
     lat_range = radius / 111  # Rough conversion: 1 degree ≈ 111km
-    lng_range = radius / (111 * abs(float(lat)))
+    lng_range = radius / (111 * max(abs(float(lat)), 0.01))
     
     terminals = Terminal.objects.filter(
         latitude__range=(float(lat) - lat_range, float(lat) + lat_range),

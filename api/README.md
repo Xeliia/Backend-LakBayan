@@ -2,10 +2,10 @@
 
 ## Summary
 
-**LakBayan** is a comprehensive transportation data API for the Philippines that provides information about terminals, routes, and transportation modes across different regions and cities.
+**LakBayan** is a comprehensive transportation data API for the Philippines that provides information about terminals, routes, and transportation modes across different regions and cities. The API features **email verification requirements** for user contributions to ensure data quality and prevent spam.
 
-### 🔐 **Accounts:**
-- `POST /accounts/register/` - Register new user account
+### 🔐 **Authentication & Account Management:**
+- `POST /accounts/register/` - Register new user account (sends verification email)
 - `POST /accounts/login/` - Authenticate user and get JWT tokens
 - `POST /accounts/logout/` - Logout user and blacklist refresh token (requires auth)
 - `GET /accounts/profile/` - Get current user's profile (requires auth)
@@ -13,26 +13,47 @@
 - `PATCH /accounts/profile/` - Partially update current user's profile (requires auth)
 - `DELETE /accounts/delete/` - Permanently delete user account (requires auth)
 
+### 📧 **Email Verification:**
+- `GET /email-verification/status/` - Check current user's email verification status (requires auth)
+- `POST /email-verification/resend/` - Resend email verification link (requires auth)
+
 ### 🚌 **Terminals:**
 - `GET /terminals/city/<city_id>/` - Get all verified terminals in a specific city
 - `GET /terminals/region/<region_id>/` - Get all verified terminals in a specific region
-- `GET /terminals/nearby/` - Get terminals within specified radius of coordinates (query params: lat, lng, radius)
+- `GET /terminals/nearby/` - Get terminals within specified radius of coordinates
+
+### 🛣️ **User Contributions (Email Verification Required):**
+- `POST /contribute/terminal/` - Submit new terminal for verification (requires verified email)
+- `POST /contribute/route/` - Submit new route for verification (requires verified email)
+- `POST /contribute/stop/` - Submit new route stop for verification (requires verified email)
+- `POST /contribute/complete-route/` - Submit complete route with stops (requires verified email)
+- `GET /my-contributions/` - View your contribution history (requires auth)
+
+### 🏗️ **Helper Endpoints:**
+- `GET /cities/region/<region_id>/` - Get cities in a specific region
+- `GET /transport-modes/` - Get available transportation modes
 
 ### 📊 **Data Export:**
-- `GET /complete/` - Export all verified transportation data (regions → cities → terminals → routes → route stops)
-- `GET /metadata/` - Get metadata about the transportation data (counts and last updated timestamp)
+- `GET /complete/` - Export all verified transportation data
+- `GET /metadata/` - Get metadata about the transportation data
+- `GET /export/regions-cities/` - Export regions and cities only
+- `GET /export/terminals/` - Export all terminals
+- `GET /export/routes-stops/` - Export all routes and stops
 
 ---
 
 **Key Features:**
 - 🔐 **JWT Authentication** - Secure user accounts with access/refresh tokens
+- 📧 **Email Verification** - Required for all user contributions to prevent spam
 - 🚌 **Terminal Management** - Search terminals by city, region, or proximity
-- 🗺️ **Nested Data Structure** - Complete transportation hierarchy from regions to individual route stops
-- ✅ **Verified Data Only** - Public endpoints return only verified terminals and routes
-- 📍 **Location-Based Search** - Find nearby terminals using coordinates and radius
-- 🇵🇭 **Philippine Focus** - Designed specifically for Philippine transportation systems
+- 🛣️ **Route Contributions** - Users can add terminals, routes, and stops
+- 🗺️ **Nested Data Structure** - Complete transportation hierarchy
+- ✅ **Admin Verification** - All contributions require admin approval
+- 📍 **Location-Based Search** - Find nearby terminals using coordinates
+- 🇵🇭 **Philippine Focus** - Designed for Philippine transportation systems
 
 ---
+
 
 ## Base URL
 ```
@@ -51,7 +72,7 @@ Authorization: Bearer <access_token>
 
 ### 1. Register User
 **Endpoint:** `POST /accounts/register/`  
-**Description:** Create a new user account  
+**Description:** Create a new user account and send verification email  
 **Authentication:** Not required  
 
 **Request Body:**
@@ -74,10 +95,12 @@ Authorization: Bearer <access_token>
         "id": 1,
         "username": "testuser",
         "email": "test@example.com",
-        "date_joined": "2025-10-05T15:30:00.123456Z"
+        "date_joined": "2025-10-09T15:30:00.123456Z"
     }
 }
 ```
+
+**Note:** A verification email is automatically sent. User must verify email before contributing.
 
 ### 2. Login User
 **Endpoint:** `POST /accounts/login/`  
@@ -181,11 +204,63 @@ Authorization: Bearer <access_token>
 
 ---
 
+## 📧 Email Verification
+
+### 1. Check Email Verification Status
+**Endpoint:** `GET /email-verification/status/`  
+**Description:** Check if current user's email is verified  
+**Authentication:** Required  
+
+**Response (200 OK) - Verified:**
+```json
+{
+    "email_verified": true,
+    "email": "test@example.com",
+    "username": "testuser",
+    "primary_email": "test@example.com"
+}
+```
+
+**Response (200 OK) - Not Verified:**
+```json
+{
+    "email_verified": false,
+    "email": null,
+    "username": "testuser", 
+    "primary_email": "test@example.com"
+}
+```
+
+### 2. Resend Verification Email
+**Endpoint:** `POST /email-verification/resend/`  
+**Description:** Resend email verification link  
+**Authentication:** Required  
+
+**Response (200 OK) - Email Sent:**
+```json
+{
+    "message": "Verification email sent successfully",
+    "email": "test@example.com"
+}
+```
+
+**Response (200 OK) - Already Verified:**
+```json
+{
+    "message": "Email is already verified",
+    "email_verified": true
+}
+```
+
+**Rate Limiting:** Maximum 1 verification email per 3 minutes per user.
+
+---
+
 ## 🚌 Terminal Management
 
 ### 1. Get Terminals by City
 **Endpoint:** `GET /terminals/city/<city_id>/`  
-**Description:** Get all verified terminals in a specific city with their routes and stops  
+**Description:** Get all verified terminals in a specific city with routes and stops  
 **Authentication:** Not required  
 
 **Example:** `GET /terminals/city/1/`
@@ -228,17 +303,6 @@ Authorization: Bearer <access_token>
                         "latitude": "14.539757",
                         "longitude": "121.017421",
                         "terminal": null
-                    },
-                    {
-                        "id": 2,
-                        "stop_name": "LRT Buendia",
-                        "fare": "66.00",
-                        "distance": "33.40",
-                        "time": 130,
-                        "order": 2,
-                        "latitude": "14.554152",
-                        "longitude": "120.996629",
-                        "terminal": 3
                     }
                 ]
             }
@@ -294,6 +358,57 @@ Authorization: Bearer <access_token>
 {
     "error": "lat and lng parameters are required"
 }
+```
+
+---
+
+## 🏗️ Helper Endpoints
+
+### 1. Get Cities by Region
+**Endpoint:** `GET /cities/region/<region_id>/`  
+**Description:** Get cities in a specific region (for contribution forms)  
+**Authentication:** Not required  
+
+**Example:** `GET /cities/region/1/`
+
+**Response (200 OK):**
+```json
+[
+    {
+        "id": 1,
+        "name": "Biñan"
+    },
+    {
+        "id": 2,
+        "name": "Calamba"
+    }
+]
+```
+
+### 2. Get Transport Modes
+**Endpoint:** `GET /transport-modes/`  
+**Description:** Get available transportation modes (for contribution forms)  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+[
+    {
+        "id": 1,
+        "name": "Jeepney",
+        "fare_type": "Minimum"
+    },
+    {
+        "id": 2,
+        "name": "Bus",
+        "fare_type": "Fixed"
+    },
+    {
+        "id": 3,
+        "name": "UV Express",
+        "fare_type": "Fixed"
+    }
+]
 ```
 
 ---
@@ -440,9 +555,104 @@ Authorization: Bearer <access_token>
 **Response (200 OK):**
 ```json
 {
-    "last_updated": "2025-10-05T09:07:49.786296Z",
+    "last_updated": "2025-10-09T09:07:49.786296Z",
     "total_terminals": 3,
     "total_routes": 1
+}
+```
+
+### 3. Export Regions and Cities
+**Endpoint:** `GET /export/regions-cities/`  
+**Description:** Export only regions and cities data  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "regions": [
+        {
+            "id": 1,
+            "name": "Laguna",
+            "cities": [
+                {
+                    "id": 1,
+                    "name": "Biñan",
+                    "region": 1
+                }
+            ]
+        }
+    ],
+    "export_timestamp": "2025-10-09T10:15:30.123456Z"
+}
+```
+
+### 4. Export Terminals
+**Endpoint:** `GET /export/terminals/`  
+**Description:** Export all verified terminals with routes  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "terminals": [
+        {
+            "id": 1,
+            "name": "Biñan Jac Liner Terminal",
+            "description": "Buses going to gil puyat and one ayala",
+            "latitude": "14.339165",
+            "longitude": "121.081884",
+            "city": {
+                "id": 1,
+                "name": "Biñan",
+                "region": 1
+            },
+            "verified": true,
+            "rating": 0,
+            "routes": []
+        }
+    ],
+    "last_updated": "2025-10-09T09:07:49.786296Z",
+    "export_timestamp": "2025-10-09T10:20:15.789123Z"
+}
+```
+
+### 5. Export Routes and Stops
+**Endpoint:** `GET /export/routes-stops/`  
+**Description:** Export all routes with their stops  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "routes": [
+        {
+            "id": 1,
+            "mode": {
+                "id": 3,
+                "mode_name": "bus",
+                "fare_type": "fixed"
+            },
+            "terminal": {
+                "id": 1,
+                "name": "Biñan Jac Liner Terminal"
+            },
+            "verified": true,
+            "description": "Papontang Gil Puyat LRT",
+            "stops": [
+                {
+                    "id": 1,
+                    "stop_name": "Magallanes, Pasay",
+                    "fare": "66.00",
+                    "distance": "32.70",
+                    "time": 120,
+                    "order": 1,
+                    "latitude": "14.539757",
+                    "longitude": "121.017421"
+                }
+            ]
+        }
+    ],
+    "export_timestamp": "2025-10-09T10:25:45.321654Z"
 }
 ```
 
@@ -454,7 +664,8 @@ Authorization: Bearer <access_token>
 ```json
 {
     "username": ["Username already exists"],
-    "password": ["Passwords don't match"]
+    "password": ["Passwords don't match"],
+    "latitude": ["Latitude must be between -90 and 90"]
 }
 ```
 
@@ -462,6 +673,19 @@ Authorization: Bearer <access_token>
 ```json
 {
     "detail": "Authentication credentials were not provided."
+}
+```
+
+### Email Verification Required (403 Forbidden)
+```json
+{
+    "error": "Email verification required",
+    "message": "Please verify your email address before contributing",
+    "code": "EMAIL_VERIFICATION_REQUIRED",
+    "action": {
+        "type": "resend_verification",
+        "url": "/accounts/email/"
+    }
 }
 ```
 
@@ -479,57 +703,141 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### Method Not Allowed (405 Method Not Allowed)
+### Rate Limit Exceeded (429 Too Many Requests)
 ```json
 {
-    "detail": "Method \"GET\" not allowed."
+    "detail": "Rate limit exceeded. Please try again later."
+}
+```
+
+### Server Error (500 Internal Server Error)
+```json
+{
+    "error": "Failed to send verification email",
+    "details": "SMTP connection failed"
 }
 ```
 
 ---
 
-## 📝 Notes
+## 📝 Important Notes
 
-- All timestamps are in ISO 8601 format (UTC)
-- JWT access tokens expire in 60 minutes
-- JWT refresh tokens expire in 7 days
-- Only verified terminals and routes are returned in public endpoints
-- Coordinates are in decimal degrees (WGS84)
-- Distance calculations use simple bounding box approximation
-- All monetary values (fares) are in Philippine Pesos (PHP)
-- Time values in route stops are in minutes from origin
-- Route stops are ordered sequentially (order field)
+### Email Verification System:
+- **Registration:** Verification email sent automatically
+- **Rate Limiting:** 1 verification email per 3 minutes per user
+- **Verification:** One-time verification (permanent once verified)
+- **Contributions:** All require verified email address
+- **Email Provider:** Uses Gmail SMTP for reliable delivery
+
+### Authentication & Tokens:
+- **Access Tokens:** Expire in 60 minutes
+- **Refresh Tokens:** Expire in 7 days, rotate on refresh
+- **Token Blacklisting:** Logout blacklists refresh tokens
+- **Login Attempts:** Maximum 5 failed attempts per 5 minutes
+
+### Data & Verification:
+- **User Contributions:** Require email verification + admin approval
+- **Public Data:** Only verified terminals and routes returned
+- **Geographic Data:** Coordinates in decimal degrees (WGS84)
+- **Currency:** All fares in Philippine Pesos (PHP)
+- **Time Values:** In minutes from origin terminal
+
+### Rate Limiting:
+- **Login Failures:** 5 attempts per 5 minutes
+- **Email Verification:** 1 email per 3 minutes
+- **API Calls:** No rate limiting on public endpoints
 
 ---
 
 ## 🚀 Getting Started
 
-1. **Register a new account:**
-   ```bash
-   curl -X POST http://127.0.0.1:8000/api/accounts/register/ \
-     -H "Content-Type: application/json" \
-     -d '{"username":"testuser","email":"test@example.com","password":"pass123","password_confirm":"pass123"}'
-   ```
+### 1. Register Account & Verify Email
+```bash
+# 1. Register a new account
+curl -X POST https://lakbayan-backend.onrender.com/api/accounts/register/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com", 
+    "password": "securepass123",
+    "password_confirm": "securepass123"
+  }'
 
-2. **Login to get tokens:**
-   ```bash
-   curl -X POST http://127.0.0.1:8000/api/accounts/login/ \
-     -H "Content-Type: application/json" \
-     -d '{"username":"testuser","password":"pass123"}'
-   ```
+# 2. Check your email and click verification link
 
-3. **Use the access token for protected endpoints:**
-   ```bash
-   curl -X GET http://127.0.0.1:8000/api/accounts/profile/ \
-     -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
-   ```
+# 3. Login to get tokens
+curl -X POST https://lakbayan-backend.onrender.com/api/accounts/login/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "securepass123"
+  }'
+```
 
-4. **Get complete transportation data:**
-   ```bash
-   curl http://127.0.0.1:8000/api/complete/
-   ```
+### 2. Check Email Verification Status
+```bash
+curl -X GET https://lakbayan-backend.onrender.com/api/email-verification/status/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
 
-5. **Find nearby terminals:**
-   ```bash
-   curl "http://127.0.0.1:8000/api/terminals/nearby/?lat=14.3392&lng=121.0819&radius=10"
-   ```
+### 3. Contribute Transportation Data
+```bash
+# Contribute a new terminal (requires verified email)
+curl -X POST https://lakbayan-backend.onrender.com/api/contribute/terminal/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Terminal",
+    "description": "Description of terminal",
+    "latitude": 14.1234,
+    "longitude": 121.1234,
+    "city": 1
+  }'
+```
+
+### 4. View Your Contributions
+```bash
+curl -X GET https://lakbayan-backend.onrender.com/api/my-contributions/ \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### 5. Get Public Transportation Data
+```bash
+# Get complete transportation data
+curl https://lakbayan-backend.onrender.com/api/complete/
+
+# Find nearby terminals
+curl "https://lakbayan-backend.onrender.com/api/terminals/nearby/?lat=14.3392&lng=121.0819&radius=10"
+
+# Get terminals in a specific city
+curl https://lakbayan-backend.onrender.com/api/terminals/city/1/
+```
+
+---
+
+## 📊 API Summary
+
+### Public Endpoints (No Authentication):
+- ✅ Data export endpoints
+- ✅ Terminal search endpoints  
+- ✅ Helper endpoints (cities, transport modes)
+
+### Protected Endpoints (Authentication Required):
+- 🔐 Account management
+- 📧 Email verification status/resend
+- 📊 User contribution history
+
+### Contribution Endpoints (Authentication + Email Verification):
+- 📧✅ Terminal contributions
+- 📧✅ Route contributions  
+- 📧✅ Route stop contributions
+- 📧✅ Complete route contributions
+
+### Email Verification Features:
+- 📧 Automatic verification email on registration
+- 📧 Manual resend verification email
+- 📧 One-time verification (permanent)
+- 📧 Rate limiting (3-minute cooldown)
+- 📧 Gmail SMTP for reliable delivery
+
+**The LakBayan API provides a complete, secure, and user-friendly system for crowdsourced transportation data in the Philippines with robust email verification to ensure data quality.** 🇵🇭🚌

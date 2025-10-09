@@ -362,6 +362,297 @@ Authorization: Bearer <access_token>
 
 ---
 
+## 🛣️ User Contributions (Email Verification Required)
+
+**All contribution endpoints require:**
+1. **Authentication** (JWT token in Authorization header)
+2. **Email Verification** (user must have verified their email address)
+
+### 1. Contribute Terminal
+**Endpoint:** `POST /contribute/terminal/`  
+**Description:** Submit new terminal for admin verification  
+**Authentication:** Required + Email Verified  
+
+**Request Body:**
+```json
+{
+    "name": "Biñan JAC Liner Terminal",
+    "description": "Buses going to Metro Manila",
+    "latitude": 14.339165,
+    "longitude": 121.081884,
+    "city": 1
+}
+```
+
+**Response (201 Created):**
+```json
+{
+    "message": "Terminal contribution submitted successfully",
+    "terminal_id": 42,
+    "status": "pending_verification",
+    "data": {
+        "name": "Biñan JAC Liner Terminal",
+        "description": "Buses going to Metro Manila",
+        "latitude": "14.339165",
+        "longitude": "121.081884",
+        "city": 1
+    }
+}
+```
+
+**Error (403 Forbidden) - Email Not Verified:**
+```json
+{
+    "error": "Email verification required",
+    "message": "Please verify your email address before contributing",
+    "code": "EMAIL_VERIFICATION_REQUIRED",
+    "action": {
+        "type": "resend_verification",
+        "url": "/accounts/email/"
+    }
+}
+```
+
+**Validation Requirements:**
+- `name`: Terminal name (required)
+- `description`: Terminal description (optional)
+- `latitude`: Must be between -90 and 90 (required)
+- `longitude`: Must be between -180 and 180 (required)
+- `city`: Must be a valid city ID (required)
+
+### 2. Contribute Route
+**Endpoint:** `POST /contribute/route/`  
+**Description:** Submit new route to verified terminal  
+**Authentication:** Required + Email Verified  
+
+**Request Body:**
+```json
+{
+    "terminal": 1,
+    "destination_name": "Gil Puyat LRT Station",
+    "mode": 3,
+    "description": "Route to Gil Puyat LRT",
+    "polyline": null
+}
+```
+
+**Response (201 Created):**
+```json
+{
+    "message": "Route contribution submitted successfully",
+    "route_id": 25,
+    "status": "pending_verification",
+    "data": {
+        "terminal": 1,
+        "destination_name": "Gil Puyat LRT Station",
+        "mode": 3,
+        "description": "Route to Gil Puyat LRT",
+        "polyline": null
+    }
+}
+```
+
+**Error (400 Bad Request) - Invalid Terminal:**
+```json
+{
+    "terminal": ["Can only add routes to verified terminals"]
+}
+```
+
+**Validation Requirements:**
+- `terminal`: Must be a verified terminal ID (required)
+- `destination_name`: Route destination (required)
+- `mode`: Must be a valid transport mode ID (required)
+- `description`: Route description (optional)
+- `polyline`: GPS coordinates array (optional)
+
+### 3. Contribute Route Stop
+**Endpoint:** `POST /contribute/stop/`  
+**Description:** Submit new stop to verified route  
+**Authentication:** Required + Email Verified  
+
+**Request Body:**
+```json
+{
+    "route": 1,
+    "stop_name": "Magallanes Station",
+    "fare": 66.00,
+    "distance": 32.7,
+    "time": 120,
+    "order": 1,
+    "latitude": 14.539757,
+    "longitude": 121.017421,
+    "terminal": null
+}
+```
+
+**Response (201 Created):**
+```json
+{
+    "message": "Route stop contribution submitted successfully",
+    "stop_id": 15,
+    "data": {
+        "route": 1,
+        "stop_name": "Magallanes Station",
+        "fare": "66.00",
+        "distance": "32.70",
+        "time": 120,
+        "order": 1,
+        "latitude": "14.539757",
+        "longitude": "121.017421",
+        "terminal": null
+    }
+}
+```
+
+**Error (400 Bad Request) - Invalid Route:**
+```json
+{
+    "route": ["Can only add stops to verified routes"],
+    "order": ["A stop with this order already exists for this route"]
+}
+```
+
+**Validation Requirements:**
+- `route`: Must be a verified route ID (required)
+- `stop_name`: Name of the stop (required)
+- `fare`: Fare to this stop in PHP (required)
+- `distance`: Distance from origin in km (optional)
+- `time`: Travel time from origin in minutes (optional)
+- `order`: Stop sequence number (required, must be unique per route)
+- `latitude`: Stop latitude -90 to 90 (required)
+- `longitude`: Stop longitude -180 to 180 (required)
+- `terminal`: Terminal ID if stop is at a terminal (optional)
+
+### 4. Contribute Complete Route
+**Endpoint:** `POST /contribute/complete-route/`  
+**Description:** Submit route with multiple stops in one request  
+**Authentication:** Required + Email Verified  
+
+**Request Body:**
+```json
+{
+    "route": {
+        "terminal": 1,
+        "destination_name": "Manila City Hall",
+        "mode": 3,
+        "description": "Complete route to Manila",
+        "polyline": null
+    },
+    "stops": [
+        {
+            "stop_name": "First Stop",
+            "fare": 25.00,
+            "distance": 5.0,
+            "time": 30,
+            "order": 1,
+            "latitude": 14.1234,
+            "longitude": 121.1234,
+            "terminal": null
+        },
+        {
+            "stop_name": "Second Stop", 
+            "fare": 45.00,
+            "distance": 15.0,
+            "time": 60,
+            "order": 2,
+            "latitude": 14.2345,
+            "longitude": 121.2345,
+            "terminal": null
+        }
+    ]
+}
+```
+
+**Response (201 Created):**
+```json
+{
+    "message": "Complete route with stops submitted successfully",
+    "route_id": 26,
+    "stops_count": 2,
+    "status": "pending_verification"
+}
+```
+
+**Error Responses:**
+```json
+{
+    "error": "Invalid route data",
+    "route_errors": {
+        "terminal": ["Can only add routes to verified terminals"]
+    }
+}
+```
+
+```json
+{
+    "error": "Invalid stop data",
+    "stop_errors": {
+        "order": ["A stop with this order already exists for this route"]
+    }
+}
+```
+
+### 5. My Contributions
+**Endpoint:** `GET /my-contributions/`  
+**Description:** View your contribution history and status  
+**Authentication:** Required  
+
+**Response (200 OK):**
+```json
+{
+    "terminals": {
+        "data": [
+            {
+                "name": "Biñan JAC Liner Terminal",
+                "description": "Buses going to Metro Manila",
+                "latitude": "14.339165",
+                "longitude": "121.081884",
+                "city": 1
+            }
+        ],
+        "total": 1,
+        "verified": 0,
+        "pending": 1
+    },
+    "routes": {
+        "data": [
+            {
+                "terminal": 1,
+                "destination_name": "Gil Puyat LRT Station",
+                "mode": 3,
+                "description": "Route to Gil Puyat LRT",
+                "polyline": null
+            }
+        ],
+        "total": 1,
+        "verified": 0,
+        "pending": 1
+    },
+    "summary": {
+        "total_contributions": 2,
+        "verified_contributions": 0
+    }
+}
+```
+
+### Contribution Workflow:
+1. **User registers** → Verification email sent automatically
+2. **User verifies email** → Can now contribute
+3. **User submits contributions** → Marked as `pending_verification`
+4. **Admin reviews** → Approves/rejects contributions
+5. **Approved contributions** → Become visible in public API endpoints
+
+### Important Notes:
+- **All contributions require email verification** to prevent spam
+- **Admin approval required** before contributions become public
+- **Sequential stop ordering** enforced for route stops
+- **Geographic validation** ensures valid coordinates
+- **Only verified terminals/routes** can have new routes/stops added
+- **User can track status** of all their contributions
+
+---
+
 ## 🏗️ Helper Endpoints
 
 ### 1. Get Cities by Region

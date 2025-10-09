@@ -86,6 +86,8 @@ class Route(models.Model):
     destination_name = models.CharField(max_length=200)
     mode = models.ForeignKey('ModeOfTransport', on_delete=models.CASCADE, related_name='routes')
     verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True) 
+    updated_at = models.DateTimeField(auto_now=True)
     added_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='added_routes')
     description = models.TextField(blank=True, null=True)
     polyline = models.JSONField(blank=True, null=True)
@@ -111,6 +113,8 @@ class RouteStop(models.Model):
         max_digits=9, decimal_places=6,
         validators=[MinValueValidator(-180), MaxValueValidator(180)]
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['order']

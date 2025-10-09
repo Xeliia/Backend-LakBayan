@@ -954,19 +954,34 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 2. Data Export Metadata
+### 2. Data Export Metadata ⭐ **NEW**
 **Endpoint:** `GET /metadata/`  
-**Description:** Get metadata about the transportation data  
+**Description:** Lightweight endpoint to check if user-contributed data has changed (for weekly sync)  
 **Authentication:** Not required  
+
+**Use Case:** Frontend weekly sync - check if data changed before downloading full dataset
 
 **Response (200 OK):**
 ```json
 {
-    "last_updated": "2025-10-09T09:07:49.786296Z",
-    "total_terminals": 3,
-    "total_routes": 1
+    "last_updated": "2024-12-19T15:30:22Z",
+    "data_version": "20241219_153022",
+    "counts": {
+        "terminals": 156,
+        "routes": 324,
+        "stops": 1247
+    },
+    "check_timestamp": "2024-12-19T15:45:00Z",
+    "note": "Tracks user-contributed content only (terminals, routes, stops)"
 }
 ```
+
+**Fields:**
+- `last_updated`: Timestamp of most recent user contribution
+- `data_version`: Human-readable version string for comparison  
+- `counts`: Current counts of verified content
+- `check_timestamp`: When this metadata was generated
+- `note`: Explanation of what's tracked
 
 ### 3. Export Regions and Cities
 **Endpoint:** `GET /export/regions-cities/`  

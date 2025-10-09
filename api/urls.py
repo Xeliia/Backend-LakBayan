@@ -13,7 +13,7 @@ urlpatterns = [
     
     # Data Export
     path('complete/', views.complete_data_export, name='complete-data-export'),
-    path('metadata/', views.data_export_metadata, name='data-export-metadata'),
+    path('metadata/', views.metadata, name='metadata'),
     path('export/regions-cities/', views.export_regions_cities, name='export-regions-cities'),
     path('export/terminals/', views.export_terminals, name='export-terminals'),
     path('export/routes-stops/', views.export_routes_stops, name='export-routes-stops'),

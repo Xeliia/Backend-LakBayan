@@ -144,6 +144,38 @@ class TerminalContributionSerializer(serializers.ModelSerializer):
         if not (-180 <= value <= 180):
             raise serializers.ValidationError("Longitude must be between -180 and 180")
         return value
+    
+    def validate(self, attrs):
+        """Check for duplicate terminals by location"""
+        latitude = attrs.get('latitude')
+        longitude = attrs.get('longitude')
+        
+        # Check if terminal at same coordinates already exists
+        existing_terminal = Terminal.objects.filter(
+            latitude=latitude,
+            longitude=longitude
+        ).first()
+        
+        if existing_terminal:
+            if existing_terminal.verified:
+                raise serializers.ValidationError({
+                    'location': f'A terminal already exists at coordinates ({latitude}, {longitude}). '
+                               f'Terminal name: "{existing_terminal.name}". '
+                               f'Please add routes to the existing terminal instead.',
+                    'existing_terminal_id': existing_terminal.id, # type: ignore
+                    'existing_terminal_name': existing_terminal.name,
+                    'suggestion': 'Use /contribute/route/ to add routes to existing terminals'
+                })
+            else:
+                raise serializers.ValidationError({
+                    'location': f'A terminal is already pending verification at coordinates ({latitude}, {longitude}). '
+                               f'Terminal name: "{existing_terminal.name}".',
+                    'existing_terminal_id': existing_terminal.id, # type: ignore
+                    'existing_terminal_name': existing_terminal.name,
+                    'suggestion': 'Wait for admin approval or contact support'
+                })
+        
+        return attrs
 
 class RouteContributionSerializer(serializers.ModelSerializer):
     class Meta:

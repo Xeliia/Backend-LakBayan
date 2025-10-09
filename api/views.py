@@ -169,18 +169,42 @@ def complete_data_export(request):
     return Response(response_data)
 
 @api_view(['GET'])
-def data_export_metadata(request):
-    last_updated = Terminal.objects.aggregate(Max('updated_at'))['updated_at__max'] or timezone.now()
+def metadata(request):
+    """Lightweight endpoint to check if data has changed"""
     
+    # Check what timestamp fields are available and use them
+    terminal_timestamp = None
+    route_timestamp = None
+    
+    # Try to get the latest terminal
+    if Terminal.objects.filter(verified=True).exists():
+        latest_terminal = Terminal.objects.filter(verified=True).latest('created_at')
+        terminal_timestamp = latest_terminal.created_at
+    
+    # Try to get the latest route  
+    if Route.objects.filter(verified=True).exists():
+        latest_route = Route.objects.filter(verified=True).latest('created_at')
+        route_timestamp = latest_route.created_at
+    
+    # Find the most recent
+    all_timestamps = [terminal_timestamp, route_timestamp]
+    global_last_updated = max([ts for ts in all_timestamps if ts is not None], default=timezone.now())
+    
+    # Get counts
     total_terminals = Terminal.objects.filter(verified=True).count()
     total_routes = Route.objects.filter(verified=True).count()
+    total_stops = RouteStop.objects.filter(route__verified=True).count()
     
     return Response({
-        'last_updated': last_updated,
-        'total_terminals': total_terminals,
-        'total_routes': total_routes,
+        "last_updated": global_last_updated,
+        "data_version": global_last_updated.strftime("%Y%m%d_%H%M%S"),
+        "counts": {
+            "terminals": total_terminals,
+            "routes": total_routes, 
+            "stops": total_stops
+        },
+        "check_timestamp": timezone.now()
     })
-
 #Terminals
 class TerminalsByCityView(generics.ListAPIView):
     serializer_class = TerminalSerializer
@@ -454,7 +478,7 @@ def contribute_all(request):
                 rating=0
             )
             
-            print(f"✅ Terminal created: ID={terminal.id}")  # Debug
+            print(f"✅ Terminal created: ID={terminal.id}")  # type: ignore # Debug
             
             # 2. Create Route (unverified) - DIRECT MODEL CREATION
             route_data = data['route']
@@ -477,7 +501,7 @@ def contribute_all(request):
                 verified=False
             )
             
-            print(f"✅ Route created: ID={route.id}")  # Debug
+            print(f"✅ Route created: ID={route.id}")  # type: ignore # Debug
             
             # 3. Create Stops - DIRECT MODEL CREATION
             created_stops = []
@@ -504,14 +528,14 @@ def contribute_all(request):
                 )
                 
                 created_stops.append(stop)
-                print(f"✅ Stop created: ID={stop.id}, Route ID={stop.route_id}")  # Debug
+                print(f"✅ Stop created: ID={stop.id}, Route ID={stop.route_id}")  # type: ignore # Debug
             
             return Response({
                 'message': 'Complete transportation data submitted successfully',
                 'status': 'pending_verification',
                 'data': {
-                    'terminal_id': terminal.id,
-                    'route_id': route.id,
+                    'terminal_id': terminal.id, # type: ignore
+                    'route_id': route.id, # type: ignore
                     'stops_count': len(created_stops),
                     'terminal_name': terminal.name,
                     'route_destination': route.destination_name,

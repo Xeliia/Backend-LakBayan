@@ -48,6 +48,9 @@ class Terminal(models.Model):
             models.Index(fields=['verified']),
             models.Index(fields=['city']),
         ]
+        unique_together = [
+            ('latitude', 'longitude'),
+        ]
 
     def __str__(self):
         return self.name or f"Terminal {self.id}" # type: ignore

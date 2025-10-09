@@ -369,7 +369,7 @@ def contribute_complete_route(request):
                 verified=False
             )
             
-            print(f"✅ Route created: ID={route.id}")  # Debug
+            print(f"✅ Route created: ID={route.id}")  # type: ignore # Debug
             
             # 3. Create Stops - USE DIRECT MODEL CREATION
             created_stops = []
@@ -396,11 +396,11 @@ def contribute_complete_route(request):
                 )
                 
                 created_stops.append(stop)
-                print(f"✅ Stop created: ID={stop.id}, Route ID={stop.route_id}")  # Debug
+                print(f"✅ Stop created: ID={stop.id}, Route ID={stop.route_id}")  # type: ignore # Debug
             
             return Response({
                 'message': 'Complete route with stops submitted successfully',
-                'route_id': route.id,
+                'route_id': route.id, # type: ignore
                 'stops_count': len(created_stops),
                 'status': 'pending_verification'
             }, status=status.HTTP_201_CREATED)
@@ -416,10 +416,7 @@ def contribute_complete_route(request):
 @permission_classes([IsAuthenticated])
 @email_verified_required
 def contribute_all(request):
-    """
-    Submit terminal, route, and stops all together
-    Everything will be marked as unverified and require admin approval
-    """
+    """Submit terminal, route, and stops all together"""
     data = request.data
     
     # Validate required structure
@@ -435,79 +432,96 @@ def contribute_all(request):
     
     try:
         with transaction.atomic():
-            # 1. Create Terminal (unverified)
-            terminal_data = data['terminal'].copy()
-            # Don't set added_by in data - set it during save()
+            # 1. Create Terminal (unverified) - DIRECT MODEL CREATION
+            terminal_data = data['terminal']
             
-            terminal_serializer = TerminalContributionSerializer(data=terminal_data)
-            if not terminal_serializer.is_valid():
+            # Validate required terminal fields
+            required_terminal_fields = ['name', 'latitude', 'longitude', 'city']
+            missing_fields = [field for field in required_terminal_fields if field not in terminal_data]
+            if missing_fields:
                 return Response({
-                    'error': 'Invalid terminal data',
-                    'terminal_errors': terminal_serializer.errors
+                    'error': f'Missing required terminal fields: {missing_fields}'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Save terminal with proper fields
-            terminal = terminal_serializer.save(
+            terminal = Terminal.objects.create(
+                name=terminal_data['name'],
+                description=terminal_data.get('description', ''),
+                latitude=terminal_data['latitude'],
+                longitude=terminal_data['longitude'],
+                city_id=terminal_data['city'],
                 added_by=request.user,
                 verified=False,
                 rating=0
             )
             
-            # 2. Create Route (unverified) linked to new terminal
-            route_data = data['route'].copy()
-            route_data['terminal'] = terminal.id  # type: ignore # Now terminal.id exists
-            # Don't set added_by in data - set it during save()
+            print(f"✅ Terminal created: ID={terminal.id}")  # Debug
             
-            route_serializer = RouteContributionSerializer(data=route_data)
-            if not route_serializer.is_valid():
+            # 2. Create Route (unverified) - DIRECT MODEL CREATION
+            route_data = data['route']
+            
+            # Validate required route fields
+            required_route_fields = ['destination_name', 'mode']
+            missing_fields = [field for field in required_route_fields if field not in route_data]
+            if missing_fields:
                 return Response({
-                    'error': 'Invalid route data',
-                    'route_errors': route_serializer.errors
+                    'error': f'Missing required route fields: {missing_fields}'
                 }, status=status.HTTP_400_BAD_REQUEST)
             
-            # Save route with proper fields
-            route = route_serializer.save(
+            route = Route.objects.create(
+                terminal=terminal,
+                destination_name=route_data['destination_name'],
+                mode_id=route_data['mode'],
+                description=route_data.get('description', ''),
+                polyline=route_data.get('polyline'),
                 added_by=request.user,
                 verified=False
             )
             
-            # 3. Create Stops (all unverified) linked to new route
+            print(f"✅ Route created: ID={route.id}")  # Debug
+            
+            # 3. Create Stops - DIRECT MODEL CREATION
             created_stops = []
             for i, stop_data in enumerate(data['stops']):
-                stop_data_copy = stop_data.copy()
-                stop_data_copy['route'] = route.id  # type: ignore # Now route.id exists
-                # Don't set added_by for RouteStop - it doesn't have that field
-                
-                # Ensure order is set correctly if not provided
-                if 'order' not in stop_data_copy:
-                    stop_data_copy['order'] = i + 1
-                
-                stop_serializer = RouteStopContributionSerializer(data=stop_data_copy)
-                if not stop_serializer.is_valid():
+                # Validate required stop fields
+                required_stop_fields = ['stop_name', 'fare', 'latitude', 'longitude']
+                missing_fields = [field for field in required_stop_fields if field not in stop_data]
+                if missing_fields:
                     return Response({
-                        'error': f'Invalid stop data at index {i}',
-                        'stop_errors': stop_serializer.errors
+                        'error': f'Missing required fields in stop {i}: {missing_fields}'
                     }, status=status.HTTP_400_BAD_REQUEST)
                 
-                # Save stop (RouteStop doesn't have added_by or verified fields)
-                stop = stop_serializer.save()
+                # Create stop directly
+                stop = RouteStop.objects.create(
+                    route=route,
+                    stop_name=stop_data['stop_name'],
+                    fare=stop_data['fare'],
+                    distance=stop_data.get('distance'),
+                    time=stop_data.get('time'),
+                    order=stop_data.get('order', i + 1),
+                    latitude=stop_data['latitude'],
+                    longitude=stop_data['longitude'],
+                    terminal_id=stop_data.get('terminal')
+                )
+                
                 created_stops.append(stop)
+                print(f"✅ Stop created: ID={stop.id}, Route ID={stop.route_id}")  # Debug
             
             return Response({
                 'message': 'Complete transportation data submitted successfully',
                 'status': 'pending_verification',
                 'data': {
-                    'terminal_id': terminal.id, # type: ignore
-                    'route_id': route.id, # type: ignore
+                    'terminal_id': terminal.id,
+                    'route_id': route.id,
                     'stops_count': len(created_stops),
-                    'terminal_name': terminal.name, # type: ignore
-                    'route_destination': route.destination_name, # type: ignore
+                    'terminal_name': terminal.name,
+                    'route_destination': route.destination_name,
                     'all_unverified': True,
                     'note': 'All submissions require admin approval before becoming public'
                 }
             }, status=status.HTTP_201_CREATED)
             
     except Exception as e:
+        print(f"❌ Error in contribute_all: {str(e)}")  # Debug
         return Response({
             'error': 'Failed to create complete transportation data',
             'details': str(e)

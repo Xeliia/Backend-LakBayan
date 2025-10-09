@@ -27,6 +27,7 @@
 - `POST /contribute/route/` - Submit new route for verification (requires verified email)
 - `POST /contribute/stop/` - Submit new route stop for verification (requires verified email)
 - `POST /contribute/complete-route/` - Submit complete route with stops (requires verified email)
+- `POST /contribute/contribute-all/` - Submit complete everything terminals routes and stops (requires verified email)
 - `GET /my-contributions/` - View your contribution history (requires auth)
 
 ### 🏗️ **Helper Endpoints:**
@@ -34,7 +35,7 @@
 - `GET /transport-modes/` - Get available transportation modes
 
 ### 📊 **Data Export:**
-- `GET /complete/` - Export all verified transportation data
+- `GET /complete/` - Export all transportation data
 - `GET /metadata/` - Get metadata about the transportation data
 - `GET /export/regions-cities/` - Export regions and cities only
 - `GET /export/terminals/` - Export all terminals
@@ -594,7 +595,7 @@ Authorization: Bearer <access_token>
 ```
 
 ### 5. Contribute Everything (Terminal + Route + Stops) ⭐ **NEW**
-**Endpoint:** `POST /contribute/everything/`  
+**Endpoint:** `POST /contribute/contribute-all/`  
 **Description:** Submit complete transportation data: terminal, route, and stops all together  
 **Authentication:** Required + Email Verified  
 
@@ -748,7 +749,7 @@ Authorization: Bearer <access_token>
 | `/contribute/route/` | Add route to existing terminal | Verified terminal | Unverified route |
 | `/contribute/stop/` | Add stop to existing route | Verified route | Unverified stop |
 | `/contribute/complete-route/` | Add route + stops to terminal | Verified terminal | Unverified route + stops |
-| `/contribute/everything/` ⭐ | Add terminal + route + stops | None | All unverified |
+| `/contribute/contribute-all/` ⭐ | Add terminal + route + stops | None | All unverified |
 
 ### Contribution Workflow:
 1. **User registers** → Verification email sent automatically

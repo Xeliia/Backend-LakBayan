@@ -10,7 +10,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
 from django.db.models import Max
 from django.db import transaction
-from .models import Terminal, Region, Route, ModeOfTransport, City
+from .models import Terminal, Region, Route, ModeOfTransport, City, RouteStop
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
@@ -333,52 +333,82 @@ def contribute_route_stop(request):
 @permission_classes([IsAuthenticated])
 @email_verified_required
 def contribute_complete_route(request):
-    """Allow users to contribute a route with multiple stops in one request"""
-    route_data = request.data.get('route', {})
-    stops_data = request.data.get('stops', [])
+    """Submit route with multiple stops to verified terminal"""
+    data = request.data
     
-    if not route_data:
-        return Response({'error': 'Route data is required'}, status=status.HTTP_400_BAD_REQUEST)
+    # Validate required structure
+    if not all(key in data for key in ['route', 'stops']):
+        return Response({
+            'error': 'Required structure: {"route": {...}, "stops": [...]}'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not isinstance(data['stops'], list) or len(data['stops']) == 0:
+        return Response({
+            'error': 'At least one stop is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
     
     try:
         with transaction.atomic():
-            # Create the route
-            route_serializer = RouteContributionSerializer(data=route_data)
-            if route_serializer.is_valid():
-                route = route_serializer.save(
-                    added_by=request.user,
-                    verified=False
+            # 1. Validate terminal exists and is verified
+            terminal_id = data['route']['terminal']
+            try:
+                terminal = Terminal.objects.get(id=terminal_id, verified=True)
+            except Terminal.DoesNotExist:
+                return Response({
+                    'error': 'Terminal must exist and be verified'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 2. Create Route (unverified) - USE DIRECT MODEL CREATION
+            route = Route.objects.create(
+                terminal=terminal,
+                destination_name=data['route']['destination_name'],
+                mode_id=data['route']['mode'],
+                description=data['route'].get('description', ''),
+                polyline=data['route'].get('polyline'),
+                added_by=request.user,
+                verified=False
+            )
+            
+            print(f"✅ Route created: ID={route.id}")  # Debug
+            
+            # 3. Create Stops - USE DIRECT MODEL CREATION
+            created_stops = []
+            for i, stop_data in enumerate(data['stops']):
+                # Validate required fields
+                required_fields = ['stop_name', 'fare', 'latitude', 'longitude']
+                missing_fields = [field for field in required_fields if field not in stop_data]
+                if missing_fields:
+                    return Response({
+                        'error': f'Missing required fields in stop {i}: {missing_fields}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                # Create stop directly
+                stop = RouteStop.objects.create(
+                    route=route,  # Pass the route object directly
+                    stop_name=stop_data['stop_name'],
+                    fare=stop_data['fare'],
+                    distance=stop_data.get('distance'),
+                    time=stop_data.get('time'),
+                    order=stop_data.get('order', i + 1),
+                    latitude=stop_data['latitude'],
+                    longitude=stop_data['longitude'],
+                    terminal_id=stop_data.get('terminal')  # Optional terminal reference
                 )
                 
-                # Create the stops
-                created_stops = []
-                for stop_data in stops_data:
-                    stop_data['route'] = route.id # type: ignore
-                    stop_serializer = RouteStopContributionSerializer(data=stop_data)
-                    if stop_serializer.is_valid():
-                        stop = stop_serializer.save()
-                        created_stops.append(stop)
-                    else:
-                        return Response({
-                            'error': 'Invalid stop data',
-                            'stop_errors': stop_serializer.errors
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                
-                return Response({
-                    'message': 'Complete route with stops submitted successfully',
-                    'route_id': route.id, # type: ignore
-                    'stops_count': len(created_stops),
-                    'status': 'pending_verification'
-                }, status=status.HTTP_201_CREATED)
-            else:
-                return Response({
-                    'error': 'Invalid route data',
-                    'route_errors': route_serializer.errors
-                }, status=status.HTTP_400_BAD_REQUEST)
-                
+                created_stops.append(stop)
+                print(f"✅ Stop created: ID={stop.id}, Route ID={stop.route_id}")  # Debug
+            
+            return Response({
+                'message': 'Complete route with stops submitted successfully',
+                'route_id': route.id,
+                'stops_count': len(created_stops),
+                'status': 'pending_verification'
+            }, status=status.HTTP_201_CREATED)
+            
     except Exception as e:
+        print(f"❌ Error in contribute_complete_route: {str(e)}")  # Debug
         return Response({
-            'error': 'Failed to create route with stops',
+            'error': 'Failed to create complete route',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
@@ -425,7 +455,7 @@ def contribute_all(request):
             
             # 2. Create Route (unverified) linked to new terminal
             route_data = data['route'].copy()
-            route_data['terminal'] = terminal.id  # Now terminal.id exists
+            route_data['terminal'] = terminal.id  # type: ignore # Now terminal.id exists
             # Don't set added_by in data - set it during save()
             
             route_serializer = RouteContributionSerializer(data=route_data)
@@ -445,7 +475,7 @@ def contribute_all(request):
             created_stops = []
             for i, stop_data in enumerate(data['stops']):
                 stop_data_copy = stop_data.copy()
-                stop_data_copy['route'] = route.id  # Now route.id exists
+                stop_data_copy['route'] = route.id  # type: ignore # Now route.id exists
                 # Don't set added_by for RouteStop - it doesn't have that field
                 
                 # Ensure order is set correctly if not provided
@@ -467,11 +497,11 @@ def contribute_all(request):
                 'message': 'Complete transportation data submitted successfully',
                 'status': 'pending_verification',
                 'data': {
-                    'terminal_id': terminal.id,
-                    'route_id': route.id,
+                    'terminal_id': terminal.id, # type: ignore
+                    'route_id': route.id, # type: ignore
                     'stops_count': len(created_stops),
-                    'terminal_name': terminal.name,
-                    'route_destination': route.destination_name,
+                    'terminal_name': terminal.name, # type: ignore
+                    'route_destination': route.destination_name, # type: ignore
                     'all_unverified': True,
                     'note': 'All submissions require admin approval before becoming public'
                 }

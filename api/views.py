@@ -4,20 +4,19 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from functools import wraps
 from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
 from django.db.models import Max
 from django.db import transaction
-from .models import Terminal, Region, Route, ModeOfTransport, City, RouteStop
+from .models import Terminal, Region, Route, ModeOfTransport, City
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
     UserProfileSerializer,
     RegionSerializer,
-    ModeOfTransportSerializer,
     TerminalSerializer,
     RouteSerializer,
-    RouteStopSerializer,
     TerminalContributionSerializer,
     RouteContributionSerializer,
     RouteStopContributionSerializer,
@@ -46,7 +45,32 @@ class RegisterView(generics.CreateAPIView):
                 'date_joined': user.date_joined
             }
         }, status=status.HTTP_201_CREATED)
+    
+def email_verified_required(view_func):
+    """Decorator to require email verification for contributions"""
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response({
+                'error': 'Authentication required',
+                'code': 'AUTHENTICATION_REQUIRED'
+            }, status=status.HTTP_401_UNAUTHORIZED)
         
+        # Check if user has verified email
+        if not request.user.emailaddress_set.filter(verified=True).exists():
+            return Response({
+                'error': 'Email verification required',
+                'message': 'Please verify your email address before contributing',
+                'code': 'EMAIL_VERIFICATION_REQUIRED',
+                'action': {
+                    'type': 'resend_verification',
+                    'url': '/accounts/email/'
+                }
+            }, status=status.HTTP_403_FORBIDDEN)
+        
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
 class LoginView(APIView):
     def post(self, request):
         serializer = UserLoginSerializer(data=request.data)
@@ -243,6 +267,7 @@ def export_routes_stops(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@email_verified_required
 def contribute_terminal(request):
     """Allow users to contribute new terminals"""
     serializer = TerminalContributionSerializer(data=request.data)
@@ -263,6 +288,7 @@ def contribute_terminal(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@email_verified_required
 def contribute_route(request):
     """Allow users to contribute new routes to verified terminals"""
     serializer = RouteContributionSerializer(data=request.data)
@@ -281,6 +307,7 @@ def contribute_route(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@email_verified_required
 def contribute_route_stop(request):
     """Allow users to contribute new stops to verified routes"""
     serializer = RouteStopContributionSerializer(data=request.data)
@@ -296,6 +323,7 @@ def contribute_route_stop(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@email_verified_required
 def contribute_complete_route(request):
     """Allow users to contribute a route with multiple stops in one request"""
     route_data = request.data.get('route', {})
@@ -395,3 +423,52 @@ def get_transport_modes(request):
         } 
         for mode in modes
     ])
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_email_verification_status(request):
+    """Check if user's email is verified"""
+    user = request.user
+    verified_email = user.emailaddress_set.filter(verified=True).first()
+    
+    return Response({
+        'email_verified': bool(verified_email),
+        'email': verified_email.email if verified_email else None,
+        'username': user.username,
+        'primary_email': user.email
+    })
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def resend_verification_email(request):
+    """Resend email verification"""
+    from allauth.account.models import EmailAddress
+    
+    user = request.user
+    
+    # Get or create email address
+    email_address, created = EmailAddress.objects.get_or_create(
+        user=user,
+        email=user.email,
+        defaults={'primary': True, 'verified': False}
+    )
+    
+    if email_address.verified:
+        return Response({
+            'message': 'Email is already verified',
+            'email_verified': True
+        })
+    
+    try:
+        # Modern Allauth way
+        email_address.send_confirmation(request, signup=False)
+        
+        return Response({
+            'message': 'Verification email sent successfully',
+            'email': email_address.email
+        })
+    except Exception as e:
+        return Response({
+            'error': 'Failed to send verification email',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

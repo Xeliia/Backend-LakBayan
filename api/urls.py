@@ -23,14 +23,18 @@ urlpatterns = [
     path('terminals/region/<int:region_id>/', views.TerminalsByRegionView.as_view(), name='terminals-by-region'),
     path('terminals/nearby/', views.nearby_terminals, name='nearby-terminals'),
 
-    # User Contributions - ADD views. prefix!
+    # User Contributions
     path('contribute/terminal/', views.contribute_terminal, name='contribute-terminal'),
     path('contribute/route/', views.contribute_route, name='contribute-route'),
     path('contribute/stop/', views.contribute_route_stop, name='contribute-stop'),
     path('contribute/complete-route/', views.contribute_complete_route, name='contribute-complete-route'),
     path('my-contributions/', views.my_contributions, name='my-contributions'),
     
-    # Helper endpoints - ADD views. prefix!
+    # Helper
     path('cities/region/<int:region_id>/', views.get_cities_by_region, name='cities-by-region'),
     path('transport-modes/', views.get_transport_modes, name='transport-modes'),
+
+    #Email Verificaiton
+    path('email-verification/status/', views.check_email_verification_status, name='email-verification-status'),
+    path('email-verification/resend/', views.resend_verification_email, name='resend-verification'),
 ]

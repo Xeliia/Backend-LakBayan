@@ -95,6 +95,7 @@ else:
     EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
     DEFAULT_FROM_EMAIL = f'LakBayan Team <{EMAIL_HOST_USER}>'
+    ACCOUNT_EMAIL_SUBJECT_PREFIX = '[LakBayan] '
 
 # Frontend URLs for allauth
 LOGIN_REDIRECT_URL = '/'

@@ -4,6 +4,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.models import User
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
+from django.conf import settings
 from allauth.account.models import EmailAddress
 from functools import wraps
 from rest_framework.decorators import api_view, permission_classes
@@ -98,6 +105,131 @@ class LoginView(APIView):
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def forgot_password(request):
+    permission_classes = [AllowAny]
+    email = request.data.get('email')
+    
+    if not email:
+        return Response({
+            'error': 'Email address is required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        user = User.objects.get(email=email)
+        
+        # Generate password reset token
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # Create reset link (adjust domain as needed)
+        reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+        
+        # Send email
+        subject = 'LakBayan - Password Reset Request'
+        message = f"""
+        Hi {user.username},
+        
+        You requested to reset your password for your LakBayan account.
+        
+        Click the link below to reset your password:
+        {reset_link}
+        
+        If you didn't request this, please ignore this email.
+        
+        Thanks,
+        LakBayan Team
+        """
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+            fail_silently=False,
+        )
+        
+        return Response({
+            'message': 'Password reset email sent successfully',
+            'email': email
+        })
+        
+    except User.DoesNotExist:
+        return Response({
+            'message': 'If this email exists, a password reset link has been sent'
+        })
+    
+    except Exception as e:
+        return Response({
+            'error': 'Failed to send reset email',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def reset_password(request, uid, token):
+    """Handle reset password via URL parameters"""
+    if request.method == 'GET':
+        # Validate token and show it's valid
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+            
+            if default_token_generator.check_token(user, token):
+                return Response({
+                    'valid': True,
+                    'username': user.username,
+                    'message': 'Valid reset link. Please provide new password.'
+                })
+            else:
+                return Response({
+                    'valid': False,
+                    'error': 'Invalid or expired reset token'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response({
+                'valid': False,
+                'error': 'Invalid reset link'
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
+    elif request.method == 'POST':
+        # Actually reset the password
+        new_password = request.data.get('new_password')
+        
+        if not new_password:
+            return Response({
+                'error': 'new_password is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+            
+            if default_token_generator.check_token(user, token):
+                if len(new_password) < 8:
+                    return Response({
+                        'error': 'Password must be at least 8 characters long'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                user.set_password(new_password)
+                user.save()
+                
+                return Response({
+                    'message': 'Password reset successfully',
+                    'username': user.username
+                })
+            else:
+                return Response({
+                    'error': 'Invalid or expired reset token'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except (User.DoesNotExist, ValueError, TypeError):
+            return Response({
+                'error': 'Invalid reset link'
+            }, status=status.HTTP_400_BAD_REQUEST)
+    
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -122,6 +254,133 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self): # type: ignore
         return self.request.user
+    
+    def update(self, request, *args, **kwargs):
+        """Override update to handle email changes properly"""
+        user = self.get_object()
+        old_email = user.email # type: ignore
+        
+        # Get the serializer and validate
+        serializer = self.get_serializer(user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        
+        new_email = serializer.validated_data.get('email')
+        
+        # If email is being changed
+        if new_email and new_email != old_email:
+            # Check if new email already exists
+            if User.objects.filter(email=new_email).exclude(id=user.id).exists():
+                return Response({
+                    'error': 'Email address already in use'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Save the user first
+            user = serializer.save()
+            
+            # Handle EmailAddress model
+            try:
+                # Remove old email verification
+                EmailAddress.objects.filter(user=user, email=old_email).delete()
+                
+                # Create new unverified email address
+                new_email_obj, created = EmailAddress.objects.get_or_create(
+                    user=user,
+                    email=new_email,
+                    defaults={'primary': True, 'verified': False}
+                )
+                
+                # Send verification email for new email
+                new_email_obj.send_confirmation(request, signup=False)
+                
+                return Response({
+                    'message': 'Profile updated successfully',
+                    'email_changed': True,
+                    'verification_required': True,
+                    'note': 'Please verify your new email address',
+                    'user': {
+                        'id': user.id,
+                        'username': user.username,
+                        'email': user.email,
+                        'email_verified': False  # Now unverified
+                    }
+                })
+                
+            except Exception as e:
+                # If email handling fails, revert user email
+                user.email = old_email
+                user.save()
+                return Response({
+                    'error': 'Failed to update email verification',
+                    'details': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        else:
+            # No email change, normal update
+            user = serializer.save()
+            return Response({
+                'message': 'Profile updated successfully',
+                'email_changed': False,
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                }
+            })
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_password(request):
+    old_password = request.data.get('old_password')
+    new_password = request.data.get('new_password')
+    confirm_new_password = request.data.get('confirm_new_password')
+    
+    if not all([old_password, new_password, confirm_new_password]):
+        return Response({
+            'error': 'old_password, new_password, and confirm_new_password are required'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    user = request.user
+    
+    # Verify current password
+    if not user.check_password(old_password):
+        return Response({
+            'error': 'Current password is incorrect'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check if new passwords match
+    if new_password != confirm_new_password:
+        return Response({
+            'error': 'New passwords do not match'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Validate new password strength
+    if len(new_password) < 8:
+        return Response({
+            'error': 'Password must be at least 8 characters long'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Check if new password is different from current
+    if user.check_password(new_password):
+        return Response({
+            'error': 'New password must be different from current password'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+        
+        return Response({
+            'message': 'Password changed successfully',
+            'username': user.username,
+            'note': 'Please login again with your new password'
+        })
+        
+    except Exception as e:
+        return Response({
+            'error': 'Failed to change password',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class DeleteAccountView(APIView):
     permission_classes = [IsAuthenticated]

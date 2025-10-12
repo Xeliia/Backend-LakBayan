@@ -38,4 +38,9 @@ urlpatterns = [
     #Email Verificaiton
     path('email-verification/status/', views.check_email_verification_status, name='email-verification-status'),
     path('email-verification/resend/', views.resend_verification_email, name='resend-verification'),
+
+    # Password management
+    path('accounts/forgot-password/', views.forgot_password, name='forgot-password'),
+    path('accounts/reset-password/', views.reset_password, name='reset-password'),
+    path('accounts/change-password/', views.change_password, name='change-password'),
 ]

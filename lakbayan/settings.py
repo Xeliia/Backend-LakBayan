@@ -91,6 +91,7 @@ ACCOUNT_RATE_LIMITS = {
     'confirm_email': '1/3m',     # 1 confirmation email per 3 minutes
 }
 
+FRONTEND_URL = 'http://127.0.0.1:8000/api'  # For development #This should be frontend endpoint
 # Email configuration
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Development

@@ -40,6 +40,10 @@
 - `GET /export/regions-cities/` - Export regions and cities only
 - `GET /export/terminals/` - Export all terminals
 - `GET /export/routes-stops/` - Export all routes and stops
+### 🔑 **Password Management:** ⚠️ Cant test reset password since kailangan ng frontend
+- `POST /accounts/forgot-password/` - Send password reset email (public)
+- `POST /accounts/reset-password/` - Reset password using email token (public)
+- `POST /accounts/change-password/` - Change password in settings (requires auth)
 
 ---
 
@@ -146,7 +150,7 @@ Authorization: Bearer <access_token>
 
 ### 4. Update User Profile
 **Endpoint:** `PUT /accounts/profile/`  
-**Description:** Update current user's profile  
+**Description:** Update current user's profile, can also change username too depending on the request body
 **Authentication:** Required  
 
 **Request Body:**
@@ -204,6 +208,72 @@ Authorization: Bearer <access_token>
 ```
 
 ---
+
+### Password Management
+
+#### 1. Forgot Password (Public)
+**Endpoint:** `POST /accounts/forgot-password/`  
+**Description:** Send password reset email to user  
+**Authentication:** Not required  
+
+**Request Body:**
+```json
+{
+    "email": "user@example.com"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+    "message": "Password reset email sent successfully",
+    "email": "user@example.com"
+}
+```
+
+#### 2. Reset Password (Public)
+**Endpoint:** `POST /accounts/reset-password/`  
+**Description:** Reset password using token from email, uid and token should be provided when redirected
+**Authentication:** Not required  
+
+**Request Body:**
+```json
+{
+    "uid": "base64_encoded_user_id",
+    "token": "password_reset_token",
+    "new_password": "new_secure_password123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+    "message": "Password reset successfully",
+    "username": "testuser"
+}
+```
+
+#### 3. Change Password (Authenticated)
+**Endpoint:** `POST /accounts/change-password/`  
+**Description:** Change password for logged-in user  
+**Authentication:** Required (Bearer token)  
+
+**Request Body:**
+```json
+{
+    "current_password": "old_password",
+    "new_password": "new_secure_password123",
+    "confirm_password": "new_secure_password123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+    "message": "Password changed successfully",
+    "note": "Please login again with your new password"
+}
+```
 
 ## 📧 Email Verification
 

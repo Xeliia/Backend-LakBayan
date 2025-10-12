@@ -57,7 +57,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email']
-        read_only_fields = ['id', 'username']
+        read_only_fields = ['id']
+
+    def validate_username(self, value):
+        """Ensure username is unique"""
+        user = self.instance
+        if user and User.objects.filter(username=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("Username already taken")
+        return value
+    
+    def validate_email(self, value):
+        """Ensure email is unique"""
+        user = self.instance
+        if user and User.objects.filter(email=value).exclude(id=user.id).exists():
+            raise serializers.ValidationError("Email already in use")
+        return value
 
 class RouteStopSerializer(serializers.ModelSerializer):
     class Meta:

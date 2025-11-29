@@ -17,7 +17,7 @@ from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
 from django.db.models import Max
 from django.db import transaction
-from .models import Terminal, Region, Route, ModeOfTransport, City, RouteStop
+from .models import Terminal, Region, Route, ModeOfTransport, City, RouteStop, CachedExport
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
@@ -908,3 +908,94 @@ def resend_verification_email(request):
             'error': 'Failed to send verification email',
             'details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['GET'])
+def cached_complete_export(request):
+    """Serve cached complete export from JSONB"""
+    try:
+        cached = CachedExport.objects.get(export_type='complete')
+        return Response(cached.data)
+    except CachedExport.DoesNotExist:
+        return Response({
+            'error': 'Cache not initialized',
+            'message': 'Please run: python manage.py update_export_cache',
+            'fallback': '/api/complete/'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@api_view(['GET'])
+def cached_terminals_export(request):
+    """Serve cached terminals export from JSONB"""
+    try:
+        cached = CachedExport.objects.get(export_type='terminals')
+        return Response(cached.data)
+    except CachedExport.DoesNotExist:
+        return Response({
+            'error': 'Cache not initialized',
+            'fallback': '/api/export/terminals/'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@api_view(['GET'])
+def cached_routes_export(request):
+    """Serve cached routes export from JSONB"""
+    try:
+        cached = CachedExport.objects.get(export_type='routes')
+        return Response(cached.data)
+    except CachedExport.DoesNotExist:
+        return Response({
+            'error': 'Cache not initialized',
+            'fallback': '/api/export/routes-stops/'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@api_view(['GET'])
+def cached_regions_export(request):
+    """Serve cached regions export from JSONB"""
+    try:
+        cached = CachedExport.objects.get(export_type='regions')
+        return Response(cached.data)
+    except CachedExport.DoesNotExist:
+        return Response({
+            'error': 'Cache not initialized',
+            'fallback': '/api/export/regions-cities/'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+@api_view(['GET'])
+def cached_metadata(request):
+    """Get cache status and metadata"""
+    try:
+        complete_cache = CachedExport.objects.get(export_type='complete')
+        
+        # Get all cache info
+        all_caches = CachedExport.objects.all()
+        cache_info = {
+            cache.export_type: {
+                'data_version': cache.data_version,
+                'last_updated': cache.last_updated,
+                'file_size_kb': cache.file_size_kb,
+                'record_count': cache.record_count
+            }
+            for cache in all_caches
+        }
+        
+        return Response({
+            'cached': True,
+            'primary_version': complete_cache.data_version,
+            'last_updated': complete_cache.last_updated,
+            'caches': cache_info,
+            'endpoints': {
+                'complete': '/api/cached/complete/',
+                'terminals': '/api/cached/terminals/',
+                'routes': '/api/cached/routes/',
+                'regions': '/api/cached/regions/'
+            }
+        })
+    except CachedExport.DoesNotExist:
+        return Response({
+            'cached': False,
+            'message': 'Cache not initialized',
+            'live_endpoints': {
+                'complete': '/api/complete/',
+                'terminals': '/api/export/terminals/',
+                'routes': '/api/export/routes-stops/',
+                'regions': '/api/export/regions-cities/'
+            }
+        })

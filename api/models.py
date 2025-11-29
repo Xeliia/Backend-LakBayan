@@ -1,6 +1,14 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.core.cache import cache
+from django.core.management import call_command
+from threading import Thread
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Create your models here.
 
@@ -122,3 +130,84 @@ class RouteStop(models.Model):
         
     def __str__(self):
         return f"Stop {self.order}: {self.stop_name} - {self.route}"
+    
+# Add this at the end of your models.py
+
+class CachedExport(models.Model):
+    """Store pre-computed JSON exports for fast frontend access"""
+    
+    EXPORT_TYPE_CHOICES = [
+        ('complete', 'Complete Data Export'),
+        ('terminals', 'Terminals Only'),
+        ('routes', 'Routes and Stops'),
+        ('regions', 'Regions and Cities'),
+    ]
+    
+    export_type = models.CharField(
+        max_length=20, 
+        choices=EXPORT_TYPE_CHOICES, 
+        unique=True,
+        help_text="Type of cached export"
+    )
+    data = models.JSONField(
+        help_text="Cached JSON data stored as JSONB in PostgreSQL"
+    )
+    last_updated = models.DateTimeField(auto_now=True)
+    data_version = models.CharField(max_length=50)
+    record_count = models.IntegerField(default=0)
+    file_size_kb = models.IntegerField(default=0)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['export_type']),
+            models.Index(fields=['last_updated']),
+        ]
+        verbose_name = "Cached Export"
+        verbose_name_plural = "Cached Exports"
+    
+    def __str__(self):
+        return f"{self.get_export_type_display()} - {self.data_version}" # type: ignore
+    
+    def update_metadata(self):
+        """Calculate and update metadata after data change"""
+        import json
+        import sys
+        
+        # Calculate file size
+        json_str = json.dumps(self.data)
+        self.file_size_kb = sys.getsizeof(json_str) // 1024
+        
+        # Count records based on export type
+        if self.export_type == 'complete':
+            self.record_count = len(self.data.get('regions', []))
+        elif self.export_type == 'terminals':
+            self.record_count = len(self.data.get('terminals', []))
+        elif self.export_type == 'routes':
+            self.record_count = len(self.data.get('routes', []))
+        elif self.export_type == 'regions':
+            self.record_count = len(self.data.get('regions', []))
+        
+        self.save()
+
+@receiver(post_save, sender=Terminal)
+@receiver(post_save, sender=Route)
+def auto_update_cache_on_verify(sender, instance, created, **kwargs):
+    """Auto-update export cache when admin verifies terminal/route"""
+    if instance.verified:
+        cache_key = 'export_cache_update_cooldown'
+        
+        if cache.get(cache_key):
+            logger.info(f"Cache update on cooldown, skipping for {sender.__name__} #{instance.id}")
+            return
+        
+        cache.set(cache_key, True, 300)
+        logger.info(f"Triggering cache update for verified {sender.__name__} #{instance.id}")
+        
+        def update_cache():
+            try:
+                call_command('update_export_cache')
+                logger.info("Cache update completed successfully")
+            except Exception as e:
+                logger.error(f"Cache update failed: {str(e)}")
+        
+        Thread(target=update_cache, daemon=True).start()

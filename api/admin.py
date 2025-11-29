@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop
+from django.core.management import call_command
+from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop, CachedExport
 
 
 @admin.register(Region)
@@ -63,3 +64,23 @@ class RouteStopAdmin(admin.ModelAdmin):
             # Make it clear that terminal is optional
             kwargs["empty_label"] = "--- No Terminal (Regular Stop) ---"
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+@admin.register(CachedExport)
+class CachedExportAdmin(admin.ModelAdmin):
+    list_display = ('export_type', 'data_version', 'last_updated', 'file_size_kb', 'record_count')
+    list_filter = ('export_type', 'last_updated')
+    readonly_fields = ('last_updated', 'file_size_kb', 'record_count', 'data_version')
+    
+    actions = ['refresh_all_caches']
+    
+    def refresh_all_caches(self, request, queryset):
+        """Refresh all export caches"""
+        try:
+            call_command('update_export_cache')
+            self.message_user(request, "All caches refreshed successfully!")
+        except Exception as e:
+            self.message_user(request, f"Error: {str(e)}", level='ERROR')
+    refresh_all_caches.short_description = "Refresh All Export Caches" # type: ignore
+    
+    def has_add_permission(self, request):
+        return False

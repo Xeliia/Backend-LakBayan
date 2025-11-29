@@ -4,7 +4,7 @@
 
 **LakBayan** is a comprehensive transportation data API for the Philippines that provides information about terminals, routes, and transportation modes across different regions and cities. The API features **email verification requirements** for user contributions to ensure data quality and prevent spam.
 
-### 🔐 **Authentication & Account Management:**
+### Authentication & Account Management:
 - `POST /accounts/register/` - Register new user account (sends verification email)
 - `POST /accounts/login/` - Authenticate user and get JWT tokens
 - `POST /accounts/logout/` - Logout user and blacklist refresh token (requires auth)
@@ -13,16 +13,16 @@
 - `PATCH /accounts/profile/` - Partially update current user's profile (requires auth)
 - `DELETE /accounts/delete/` - Permanently delete user account (requires auth)
 
-### 📧 **Email Verification:**
+### Email Verification:
 - `GET /email-verification/status/` - Check current user's email verification status (requires auth)
 - `POST /email-verification/resend/` - Resend email verification link (requires auth)
 
-### 🚌 **Terminals:**
+### Terminals:
 - `GET /terminals/city/<city_id>/` - Get all verified terminals in a specific city
 - `GET /terminals/region/<region_id>/` - Get all verified terminals in a specific region
 - `GET /terminals/nearby/` - Get terminals within specified radius of coordinates
 
-### 🛣️ **User Contributions (Email Verification Required):**
+### User Contributions (Email Verification Required):
 - `POST /contribute/terminal/` - Submit new terminal for verification (requires verified email)
 - `POST /contribute/route/` - Submit new route for verification (requires verified email)
 - `POST /contribute/stop/` - Submit new route stop for verification (requires verified email)
@@ -30,17 +30,34 @@
 - `POST /contribute/contribute-all/` - Submit complete everything terminals routes and stops (requires verified email)
 - `GET /my-contributions/` - View your contribution history (requires auth)
 
-### 🏗️ **Helper Endpoints:**
+### Helper Endpoints:
 - `GET /cities/region/<region_id>/` - Get cities in a specific region
 - `GET /transport-modes/` - Get available transportation modes
 
-### 📊 **Data Export:**
-- `GET /complete/` - Export all transportation data
+### Data Export (Legacy):
+- `GET /complete/` - Export all transportation data (slow, generates on-demand)
 - `GET /metadata/` - Get metadata about the transportation data
 - `GET /export/regions-cities/` - Export regions and cities only
 - `GET /export/terminals/` - Export all terminals
 - `GET /export/routes-stops/` - Export all routes and stops
-### 🔑 **Password Management:** ⚠️ Cant test reset password since kailangan ng frontend
+
+### Cached Data Export (Recommended):
+**NEW: High-performance JSONB-cached endpoints for production use**
+- `GET /cached/complete/` - Get pre-cached complete transportation data
+- `GET /cached/terminals/` - Get pre-cached terminals data
+- `GET /cached/routes/` - Get pre-cached routes and stops data
+- `GET /cached/regions/` - Get pre-cached regions and cities data
+- `GET /cached/metadata/` - Get metadata about cached exports
+
+**Cache Features:**
+- Stored as JSONB in PostgreSQL for instant retrieval
+- Auto-updates when admins verify terminals/routes (5-minute cooldown)
+- Manual refresh via Django admin action
+- Includes version tracking and metadata
+- Significantly faster than legacy on-demand generation
+
+### Password Management:
+**Note:** Cannot test reset password without frontend integration
 - `POST /accounts/forgot-password/` - Send password reset email (public)
 - `POST /accounts/reset-password/` - Reset password using email token (public)
 - `POST /accounts/change-password/` - Change password in settings (requires auth)
@@ -48,14 +65,16 @@
 ---
 
 **Key Features:**
-- 🔐 **JWT Authentication** - Secure user accounts with access/refresh tokens
-- 📧 **Email Verification** - Required for all user contributions to prevent spam
-- 🚌 **Terminal Management** - Search terminals by city, region, or proximity
-- 🛣️ **Route Contributions** - Users can add terminals, routes, and stops
-- 🗺️ **Nested Data Structure** - Complete transportation hierarchy
-- ✅ **Admin Verification** - All contributions require admin approval
-- 📍 **Location-Based Search** - Find nearby terminals using coordinates
-- 🇵🇭 **Philippine Focus** - Designed for Philippine transportation systems
+- **JWT Authentication** - Secure user accounts with access/refresh tokens
+- **Email Verification** - Required for all user contributions to prevent spam
+- **Terminal Management** - Search terminals by city, region, or proximity
+- **Route Contributions** - Users can add terminals, routes, and stops
+- **Nested Data Structure** - Complete transportation hierarchy
+- **Admin Verification** - All contributions require admin approval
+- **Location-Based Search** - Find nearby terminals using coordinates
+- **JSONB Export Cache** - Lightning-fast data exports using PostgreSQL JSONB
+- **Auto-Cache Updates** - Cache automatically refreshes when data is verified
+- **Philippine Focus** - Designed for Philippine transportation systems
 
 ---
 
@@ -73,7 +92,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 🔐 Account Management
+## Account Management
 
 ### 1. Register User
 **Endpoint:** `POST /accounts/register/`  
@@ -275,7 +294,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-## 📧 Email Verification
+## Email Verification
 
 ### 1. Check Email Verification Status
 **Endpoint:** `GET /email-verification/status/`  
@@ -327,7 +346,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 🚌 Terminal Management
+## Terminal Management
 
 ### 1. Get Terminals by City
 **Endpoint:** `GET /terminals/city/<city_id>/`  
@@ -839,7 +858,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 🏗️ Helper Endpoints
+## Helper Endpoints
 
 ### 1. Get Cities by Region
 **Endpoint:** `GET /cities/region/<region_id>/`  
@@ -890,7 +909,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 📊 Data Export
+## Data Export (Legacy)
 
 ### 1. Complete Data Export
 **Endpoint:** `GET /complete/`  
@@ -1150,7 +1169,177 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 🔧 Error Responses
+## Cached Data Export (Recommended for Production)
+
+**NEW:** High-performance JSONB-cached endpoints that serve pre-computed data stored in PostgreSQL for lightning-fast response times.
+
+### Performance Benefits:
+- **Instant Response** - Data is pre-computed and stored as JSONB in PostgreSQL
+- **Auto-Updates** - Cache refreshes automatically when admins verify terminals/routes
+- **Versioned** - Each cache includes version timestamp for tracking
+- **Scalable** - No query overhead, pure JSON retrieval from database
+- **Efficient** - Significantly faster than legacy on-demand generation
+
+### 1. Cached Complete Export
+**Endpoint:** `GET /cached/complete/`  
+**Description:** Get pre-cached complete transportation data (fastest option)  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "regions": [
+        {
+            "id": 1,
+            "name": "Laguna",
+            "cities": [
+                {
+                    "id": 1,
+                    "name": "Biñan",
+                    "terminals": [...]
+                }
+            ]
+        }
+    ],
+    "last_updated": "2025-11-29T10:30:00.123456Z",
+    "data_version": "20251129_103000",
+    "total_terminals": 150,
+    "total_routes": 500
+}
+```
+
+### 2. Cached Terminals Export
+**Endpoint:** `GET /cached/terminals/`  
+**Description:** Get pre-cached terminals data  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "terminals": [
+        {
+            "id": 1,
+            "name": "Biñan Jac Liner Terminal",
+            "latitude": "14.339165",
+            "longitude": "121.081884",
+            "city": {...},
+            "routes": [...]
+        }
+    ],
+    "export_timestamp": "2025-11-29T10:30:00.123456Z"
+}
+```
+
+### 3. Cached Routes Export
+**Endpoint:** `GET /cached/routes/`  
+**Description:** Get pre-cached routes and stops data  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "routes": [
+        {
+            "id": 1,
+            "mode": {...},
+            "terminal": {...},
+            "stops": [...]
+        }
+    ],
+    "export_timestamp": "2025-11-29T10:30:00.123456Z"
+}
+```
+
+### 4. Cached Regions Export
+**Endpoint:** `GET /cached/regions/`  
+**Description:** Get pre-cached regions and cities data  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "regions": [
+        {
+            "id": 1,
+            "name": "Laguna",
+            "cities": [...]
+        }
+    ],
+    "export_timestamp": "2025-11-29T10:30:00.123456Z"
+}
+```
+
+### 5. Cached Metadata
+**Endpoint:** `GET /cached/metadata/`  
+**Description:** Get metadata about all cached exports  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+```json
+{
+    "cache_info": {
+        "complete": {
+            "data_version": "20251129_103000",
+            "last_updated": "2025-11-29T10:30:00Z",
+            "file_size_kb": 2048,
+            "record_count": 17
+        },
+        "terminals": {
+            "data_version": "20251129_103000",
+            "last_updated": "2025-11-29T10:30:00Z",
+            "file_size_kb": 512,
+            "record_count": 150
+        },
+        "routes": {
+            "data_version": "20251129_103000",
+            "last_updated": "2025-11-29T10:30:00Z",
+            "file_size_kb": 1024,
+            "record_count": 500
+        },
+        "regions": {
+            "data_version": "20251129_103000",
+            "last_updated": "2025-11-29T10:30:00Z",
+            "file_size_kb": 128,
+            "record_count": 17
+        }
+    },
+    "system_info": {
+        "cache_enabled": true,
+        "auto_update": true,
+        "cooldown_seconds": 300
+    }
+}
+```
+
+### Cache Update System
+
+#### Automatic Updates:
+- Cache auto-refreshes when terminals or routes are verified by admin
+- 5-minute cooldown between auto-updates to prevent excessive refreshes
+- Background threading ensures no blocking of admin operations
+- Updates triggered on `post_save` signal for Terminal and Route models
+
+#### Manual Updates:
+Admins can manually refresh all caches via Django admin panel:
+1. Navigate to "Cached Exports" in Django admin
+2. Select any cached export entries
+3. Choose "Refresh All Export Caches" from Actions dropdown
+4. Click "Go" to trigger manual update
+
+#### Management Command:
+```bash
+python manage.py update_export_cache
+```
+
+This command:
+- Generates all four export types (complete, terminals, routes, regions)
+- Updates metadata (file size, record count)
+- Creates version timestamps
+- Stores data as JSONB in PostgreSQL
+
+---
+
+## Error Responses
 
 ### Validation Errors (400 Bad Request)
 ```json
@@ -1212,7 +1401,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 📝 Important Notes
+## Important Notes
 
 ### Email Verification System:
 - **Registration:** Verification email sent automatically
@@ -1241,7 +1430,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Register Account & Verify Email
 ```bash
@@ -1307,29 +1496,36 @@ curl https://lakbayan-backend.onrender.com/api/terminals/city/1/
 
 ---
 
-## 📊 API Summary
+## API Summary
 
 ### Public Endpoints (No Authentication):
-- ✅ Data export endpoints
-- ✅ Terminal search endpoints  
-- ✅ Helper endpoints (cities, transport modes)
+- Data export endpoints (legacy and cached)
+- Terminal search endpoints  
+- Helper endpoints (cities, transport modes)
 
 ### Protected Endpoints (Authentication Required):
-- 🔐 Account management
-- 📧 Email verification status/resend
-- 📊 User contribution history
+- Account management
+- Email verification status/resend
+- User contribution history
 
 ### Contribution Endpoints (Authentication + Email Verification):
-- 📧✅ Terminal contributions
-- 📧✅ Route contributions  
-- 📧✅ Route stop contributions
-- 📧✅ Complete route contributions
+- Terminal contributions
+- Route contributions  
+- Route stop contributions
+- Complete route contributions
 
 ### Email Verification Features:
-- 📧 Automatic verification email on registration
-- 📧 Manual resend verification email
-- 📧 One-time verification (permanent)
-- 📧 Rate limiting (3-minute cooldown)
-- 📧 Gmail SMTP for reliable delivery
+- Automatic verification email on registration
+- Manual resend verification email
+- One-time verification (permanent)
+- Rate limiting (3-minute cooldown)
+- Gmail SMTP for reliable delivery
 
-**The LakBayan API provides a complete, secure, and user-friendly system for crowdsourced transportation data in the Philippines with robust email verification to ensure data quality.** 🇵🇭🚌
+### Cache Management Features:
+- Automatic cache updates on data verification
+- 5-minute cooldown between auto-updates
+- Manual refresh via Django admin
+- Version tracking and metadata
+- JSONB storage for optimal performance
+
+**The LakBayan API provides a complete, secure, and user-friendly system for crowdsourced transportation data in the Philippines with robust email verification to ensure data quality and high-performance JSONB caching for production use.**

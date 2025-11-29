@@ -43,4 +43,10 @@ urlpatterns = [
     path('accounts/forgot-password/', views.forgot_password, name='forgot-password'),
     path('accounts/reset-password/', views.reset_password, name='reset-password'),
     path('accounts/change-password/', views.change_password, name='change-password'),
+
+    path('cached/complete/', views.cached_complete_export, name='cached-complete'),
+    path('cached/terminals/', views.cached_terminals_export, name='cached-terminals'),
+    path('cached/routes/', views.cached_routes_export, name='cached-routes'),
+    path('cached/regions/', views.cached_regions_export, name='cached-regions'),
+    path('cached/metadata/', views.cached_metadata, name='cached-metadata'),
 ]

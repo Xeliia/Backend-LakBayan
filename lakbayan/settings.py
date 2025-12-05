@@ -89,13 +89,12 @@ if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Development
     DEFAULT_FROM_EMAIL = 'LakBayan Team <noreply@lakbayan.local>'
 else:
-    EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+    # Production - Use Resend via Anymail (works on Render free tier)
+    EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
     ANYMAIL = {
-        "MAILGUN_API_KEY": os.getenv('MAILGUN_API_KEY'),
-        "MAILGUN_SENDER_DOMAIN": os.getenv('MAILGUN_DOMAIN'),
-        "MAILGUN_API_URL": "https://api.mailgun.net/v3",
+        "RESEND_API_KEY": os.getenv('RESEND_API_KEY'),
     }
-    DEFAULT_FROM_EMAIL = f'LakBayan Team <postmaster@{os.getenv("MAILGUN_DOMAIN")}>'
+    DEFAULT_FROM_EMAIL = 'LakBayan Team <onboarding@resend.dev>'
     ACCOUNT_EMAIL_SUBJECT_PREFIX = '[LakBayan] '
 
 # Frontend URLs for allauth

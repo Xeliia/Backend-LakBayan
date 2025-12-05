@@ -94,7 +94,7 @@ else:
     ANYMAIL = {
         "RESEND_API_KEY": os.getenv('RESEND_API_KEY'),
     }
-    DEFAULT_FROM_EMAIL = 'LakBayan Team <onboarding@resend.dev>'
+    DEFAULT_FROM_EMAIL = 'LakBayan Team <lakbayan.noreply@axel-arceleta.me>'
     ACCOUNT_EMAIL_SUBJECT_PREFIX = '[LakBayan] '
 
 # Frontend URLs for allauth

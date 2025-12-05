@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
+    'anymail'
 ]
 
 SITE_ID = 1
@@ -88,13 +89,13 @@ if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Development
     DEFAULT_FROM_EMAIL = 'LakBayan Team <noreply@lakbayan.local>'
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'     # Production
-    EMAIL_HOST = 'smtp.gmail.com'
-    EMAIL_PORT = 587
-    EMAIL_USE_TLS = True
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-    DEFAULT_FROM_EMAIL = f'LakBayan Team <{EMAIL_HOST_USER}>'
+    EMAIL_BACKEND = 'anymail.backends.mailgun.EmailBackend'
+    ANYMAIL = {
+        "MAILGUN_API_KEY": os.getenv('MAILGUN_API_KEY'),
+        "MAILGUN_SENDER_DOMAIN": os.getenv('MAILGUN_DOMAIN'),
+        "MAILGUN_API_URL": "https://api.mailgun.net/v3",
+    }
+    DEFAULT_FROM_EMAIL = f'LakBayan Team <postmaster@{os.getenv("MAILGUN_DOMAIN")}>'
     ACCOUNT_EMAIL_SUBJECT_PREFIX = '[LakBayan] '
 
 # Frontend URLs for allauth

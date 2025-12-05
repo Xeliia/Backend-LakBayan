@@ -9,3 +9,4 @@ gunicorn
 dj-database-url
 whitenoise
 django-allauth
+django-anymail

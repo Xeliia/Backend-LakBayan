@@ -1,0 +1,21 @@
+Hi {{ user.username }},
+
+Welcome to LakBayan! 🎉
+
+Thanks for signing up. You're just one step away from contributing to the Philippine transportation community.
+
+Please confirm your email address by clicking the link below:
+
+{{ activate_url }}
+
+This link expires in 3 days.
+
+Once verified, you'll be able to:
+✓ Add new terminals and routes
+✓ Contribute transportation data
+✓ Help travelers across the Philippines
+
+If you didn't sign up for LakBayan, you can safely ignore this email.
+
+Best regards,
+The LakBayan Team

@@ -40,15 +40,26 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        email_address, _ = EmailAddress.objects.get_or_create(
-            user=user, email=user.email, defaults={'primary': True}
-        )
-        if not email_address.verified:
-            email_address.send_confirmation(request, signup=True)
+        
+        # Try to send verification email, but don't fail registration if it errors
+        email_sent = False
+        email_error = None
+        try:
+            email_address, _ = EmailAddress.objects.get_or_create(
+                user=user, email=user.email, defaults={'primary': True}
+            )
+            if not email_address.verified:
+                email_address.send_confirmation(request, signup=True)
+                email_sent = True
+        except Exception as e:
+            # Log the error but don't fail registration
+            email_error = str(e)
+            print(f"❌ Email sending failed: {email_error}")
+        
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
 
-        return Response({
+        response_data = {
             'message': 'Account Created Successfully',
             'access_token': str(access_token),
             'refresh_token': str(refresh),
@@ -58,7 +69,17 @@ class RegisterView(generics.CreateAPIView):
                 'email': user.email,
                 'date_joined': user.date_joined
             }
-        }, status=status.HTTP_201_CREATED)
+        }
+        
+        # Add email status to response
+        if email_sent:
+            response_data['email_verification'] = 'sent'
+        else:
+            response_data['email_verification'] = 'failed'
+            response_data['email_error'] = email_error
+            response_data['note'] = 'Account created but verification email failed. Please contact support.'
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
 def email_verified_required(view_func):
     """Decorator to require email verification for contributions"""

@@ -90,6 +90,9 @@ ACCOUNT_RATE_LIMITS = {
 
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 
+# Custom Allauth Adapter
+ACCOUNT_ADAPTER = 'api.account_adapter.CustomAccountAdapter'
+
 # Email configuration
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Development

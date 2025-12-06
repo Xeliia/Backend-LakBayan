@@ -36,6 +36,12 @@ else:
     else:
         CORS_ALLOW_ALL_ORIGINS = True  # Temporary for testing
 
+# Required for cookies/sessions (allauth) to work cross-origin
+CORS_ALLOW_CREDENTIALS = True 
+
+# Required for POST requests (like Login) to work from localhost
+# This tells Django to trust the "Origin" header from your frontend
+CSRF_TRUSTED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
 
 # Production security settings
 if not DEBUG:

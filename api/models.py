@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from threading import Thread
 import logging
@@ -115,11 +116,15 @@ class RouteStop(models.Model):
     order = models.PositiveIntegerField()
     latitude = models.DecimalField(
         max_digits=9, decimal_places=6,
-        validators=[MinValueValidator(-90), MaxValueValidator(90)]
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+        null=True, 
+        blank=True
     )
     longitude = models.DecimalField(
         max_digits=9, decimal_places=6,
-        validators=[MinValueValidator(-180), MaxValueValidator(180)]
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+        null=True,
+        blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -127,7 +132,25 @@ class RouteStop(models.Model):
     class Meta:
         ordering = ['order']
         unique_together = ('route', 'order')
-        
+
+    def clean(self):
+        """Ensure that if no terminal is selected, lat/long are provided manually."""
+        super().clean()
+        if not self.terminal and (self.latitude is None or self.longitude is None):
+            raise ValidationError("If not linked to a Terminal, you MUST provide Latitude and Longitude.")
+    
+    def save(self, *args, **kwargs):
+        """Auto-fill details from the linked terminal if they are missing."""
+        if self.terminal:
+
+            self.latitude = self.terminal.latitude
+            self.longitude = self.terminal.longitude
+            
+            if not self.stop_name:
+                self.stop_name = self.terminal.name or "Unnamed Station"
+                
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Stop {self.order}: {self.stop_name} - {self.route}"
     

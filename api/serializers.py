@@ -210,6 +210,27 @@ class RouteStopContributionSerializer(serializers.ModelSerializer):
             'route', 'stop_name', 'terminal', 'fare', 'distance', 
             'time', 'order', 'latitude', 'longitude'
         ]
+        extra_kwargs = {
+            'latitude': {'required': False},
+            'longitude': {'required': False},
+            'terminal': {'required': False},
+        }
+    
+    def validate(self, data):
+        """
+        Custom validation to ensure we have location data from SOMEWHERE
+        (either a linked Terminal or manual Coordinates).
+        """
+        terminal = data.get('terminal')
+        lat = data.get('latitude')
+        lng = data.get('longitude')
+
+        # Logic: If no terminal is provided, you MUST provide coordinates
+        if not terminal and (lat is None or lng is None):
+            raise serializers.ValidationError(
+                "If not linked to a Terminal, you MUST provide 'latitude' and 'longitude'."
+            )
+        return data
 
     def validate_route(self, value):
         if not value.verified:

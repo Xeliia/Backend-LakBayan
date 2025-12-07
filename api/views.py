@@ -679,7 +679,10 @@ def contribute_complete_route(request):
             created_stops = []
             for i, stop_data in enumerate(data['stops']):
                 # Validate required fields
-                required_fields = ['stop_name', 'fare', 'latitude', 'longitude']
+                required_fields = ['stop_name', 'fare']
+                # If NO terminal is provided, you MUST provide lat/long
+                if not stop_data.get('terminal'):
+                    required_fields.extend(['latitude', 'longitude'])
                 missing_fields = [field for field in required_fields if field not in stop_data]
                 if missing_fields:
                     return Response({
@@ -694,9 +697,9 @@ def contribute_complete_route(request):
                     distance=stop_data.get('distance'),
                     time=stop_data.get('time'),
                     order=stop_data.get('order', i + 1),
-                    latitude=stop_data['latitude'],
-                    longitude=stop_data['longitude'],
-                    terminal_id=stop_data.get('terminal')  # Optional terminal reference
+                    latitude=stop_data.get('latitude'),
+                    longitude=stop_data.get('longitude'),
+                    terminal_id=stop_data.get('terminal')
                 )
                 
                 created_stops.append(stop)
@@ -787,7 +790,9 @@ def contribute_all(request):
             created_stops = []
             for i, stop_data in enumerate(data['stops']):
                 # Validate required stop fields
-                required_stop_fields = ['stop_name', 'fare', 'latitude', 'longitude']
+                required_stop_fields = ['stop_name', 'fare']
+                if not stop_data.get('terminal'):
+                    required_stop_fields.extend(['latitude', 'longitude'])
                 missing_fields = [field for field in required_stop_fields if field not in stop_data]
                 if missing_fields:
                     return Response({
@@ -802,8 +807,8 @@ def contribute_all(request):
                     distance=stop_data.get('distance'),
                     time=stop_data.get('time'),
                     order=stop_data.get('order', i + 1),
-                    latitude=stop_data['latitude'],
-                    longitude=stop_data['longitude'],
+                    latitude=stop_data.get('latitude'),
+                    longitude=stop_data.get('longitude'),
                     terminal_id=stop_data.get('terminal')
                 )
                 

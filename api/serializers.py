@@ -141,7 +141,6 @@ class RegionSerializer(serializers.ModelSerializer):
         return CitySerializer(cities, many=True).data
     
 # User Contribution
-
 class TerminalContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Terminal

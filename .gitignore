@@ -18,3 +18,7 @@ db.sqlite3
 # VSCode / PyCharm settings (optional)
 .vscode/
 .idea/
+
+cached_export.json
+normal_export.json
+comparison.txt

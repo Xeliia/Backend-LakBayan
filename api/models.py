@@ -154,8 +154,6 @@ class RouteStop(models.Model):
     def __str__(self):
         return f"Stop {self.order}: {self.stop_name} - {self.route}"
     
-# Add this at the end of your models.py
-
 class CachedExport(models.Model):
     """Store pre-computed JSON exports for fast frontend access"""
     

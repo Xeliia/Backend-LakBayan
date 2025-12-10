@@ -22,9 +22,9 @@ class Command(BaseCommand):
         complete_data = {
             'regions': RegionSerializer(regions, many=True).data,
             'last_updated': timestamp.isoformat(),
-            'data_version': version,
             'total_terminals': Terminal.objects.filter(verified=True).count(),
             'total_routes': Route.objects.filter(verified=True).count(),
+            'export_timestamp': timestamp.isoformat(),
         }
         
         cache_obj, created = CachedExport.objects.update_or_create(

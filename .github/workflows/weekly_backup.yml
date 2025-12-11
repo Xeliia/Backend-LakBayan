@@ -1,0 +1,47 @@
+name: Weekly Transport Data Backup
+
+on:
+  # Run every Sunday at 00:00 UTC
+  schedule:
+    - cron: '0 0 * * 0'
+  
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      custom_filename:
+        description: 'Custom filename for the backup (optional)'
+        required: false
+        type: string
+
+jobs:
+  backup:
+    name: Backup Transport Data to Supabase
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests supabase
+      
+      - name: Run backup script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_BUCKET_NAME: ${{ secrets.SUPABASE_BUCKET_NAME }}
+          API_ENDPOINT: 'https://api-lakbayan.onrender.com/api/complete/'
+        run: |
+          python scripts/backup_data.py
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Backup failed! Check the logs above for details."

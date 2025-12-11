@@ -1,5 +1,9 @@
 from django.contrib import admin
 from django.core.management import call_command
+from django.contrib import messages
+from django.urls import path
+from django.shortcuts import redirect
+from django.http import HttpResponseRedirect
 from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop, CachedExport
 
 
@@ -70,8 +74,51 @@ class CachedExportAdmin(admin.ModelAdmin):
     list_display = ('export_type', 'data_version', 'last_updated', 'file_size_kb', 'record_count')
     list_filter = ('export_type', 'last_updated')
     readonly_fields = ('last_updated', 'file_size_kb', 'record_count', 'data_version')
+    change_list_template = 'admin/cached_export_changelist.html'
     
     actions = ['refresh_all_caches']
+    
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('backup-to-supabase/', self.admin_site.admin_view(self.backup_to_supabase_view), name='backup_to_supabase'),
+        ]
+        return custom_urls + urls
+    
+    def backup_to_supabase_view(self, request):
+        """Backup transport data from /api/complete/ to Supabase Storage"""
+        import requests as http_requests
+        
+        try:
+            # Fetch data from the legacy API endpoint (not cached)
+            api_url = 'https://api-lakbayan.onrender.com/api/complete/'
+            response = http_requests.get(api_url, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            
+            # Upload to Supabase
+            from api.utils.supabase_backup import backup_transport_data
+            result = backup_transport_data(data)
+            
+            self.message_user(
+                request,
+                f"Backup successful! Uploaded {result['filename']} to Supabase bucket '{result['bucket']}'",
+                messages.SUCCESS
+            )
+        except ImportError:
+            self.message_user(
+                request,
+                "Supabase package not installed. Run: pip install supabase",
+                messages.ERROR
+            )
+        except Exception as e:
+            self.message_user(
+                request,
+                f"Backup failed: {str(e)}",
+                messages.ERROR
+            )
+        
+        return HttpResponseRedirect("../")
     
     def refresh_all_caches(self, request, queryset):
         """Refresh all export caches"""

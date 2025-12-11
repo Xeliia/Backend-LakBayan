@@ -11,3 +11,4 @@ whitenoise
 django-allauth
 django-anymail
 resend
+supabase

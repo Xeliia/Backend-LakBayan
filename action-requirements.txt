@@ -1,0 +1,5 @@
+# Requirements for GitHub Actions backup script
+# These are installed separately from the main Django app
+
+requests>=2.28.0
+supabase>=2.0.0

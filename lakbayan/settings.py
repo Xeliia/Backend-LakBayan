@@ -87,6 +87,7 @@ ACCOUNT_RATE_LIMITS = {
     'login_failed': '5/5m',      # 5 failed attempts per 5 minutes
     'confirm_email': '1/3m',     # 1 confirmation email per 3 minutes
 }
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 

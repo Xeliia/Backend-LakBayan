@@ -62,6 +62,11 @@
 - `POST /accounts/reset-password/` - Reset password using email token (public)
 - `POST /accounts/change-password/` - Change password in settings (requires auth)
 
+### User Analytics:
+- `GET /analytics/` - Get login count per hour (requires auth)
+- `GET /analytics/unique-users/` - Get unique user count per hour (requires auth)
+- `GET /analytics/all-logins/` - Get all logins with usernames per hour (requires auth + admin)
+
 ---
 
 **Key Features:**
@@ -148,7 +153,9 @@ Authorization: Bearer <access_token>
     "user": {
         "id": 1,
         "username": "testuser",
-        "email": "test@example.com"
+        "email": "test@example.com",
+        "is_staff": true,
+        "is_superuser": false
     }
 }
 ```
@@ -346,6 +353,69 @@ Authorization: Bearer <access_token>
 
 ---
 
+## User Analytics
+
+Three analytics endpoints to track login patterns and user activity.
+
+### 1. Get Login Count Per Hour
+**Endpoint:** `GET /analytics/`  
+**Description:** Get total login count grouped by hour  
+**Authentication:** Required  
+
+**Response (200 OK):**
+```json
+[
+    {"hour": "2025-12-13T10:00:00Z", "count": 8},
+    {"hour": "2025-12-13T11:00:00Z", "count": 5},
+    {"hour": "2025-12-13T12:00:00Z", "count": 3}
+]
+```
+
+**Use Case:** Track overall platform usage patterns over time.
+
+### 2. Get Unique Users Per Hour
+**Endpoint:** `GET /analytics/unique-users/`  
+**Description:** Get count of unique users who logged in per hour  
+**Authentication:** Required  
+
+**Response (200 OK):**
+```json
+[
+    {"hour": "2025-12-13T10:00:00Z", "unique_users": 3},
+    {"hour": "2025-12-13T11:00:00Z", "unique_users": 2},
+    {"hour": "2025-12-13T12:00:00Z", "unique_users": 1}
+]
+```
+
+**Use Case:** Understand how many different users are active per hour.
+
+### 3. Get All Logins With Usernames (Admin Only)
+**Endpoint:** `GET /analytics/all-logins/`  
+**Description:** Get detailed login records with username, including duplicate users per hour  
+**Authentication:** Required + Admin Only (is_staff/is_superuser)  
+
+**Response (200 OK):**
+```json
+[
+    {"hour": "2025-12-13T10:00:00Z", "user__username": "axel", "user__id": 15, "count": 5},
+    {"hour": "2025-12-13T10:00:00Z", "user__username": "xelia", "user__id": 14, "count": 3},
+    {"hour": "2025-12-13T11:00:00Z", "user__username": "axel", "user__id": 15, "count": 2}
+]
+```
+
+**Error (403 Forbidden) - Not Admin:**
+```json
+{
+    "detail": "You do not have permission to perform this action."
+}
+```
+
+**Use Case:** Detailed admin analytics - see which users are most active and when.
+
+**Security Note:** Only accessible to admin/superuser accounts to protect user privacy.
+
+---
+
 ## Terminal Management
 
 ### 1. Get Terminals by City
@@ -452,7 +522,7 @@ Authorization: Bearer <access_token>
 
 ---
 
-## 🛣️ User Contributions (Email Verification Required)
+## User Contributions (Email Verification Required)
 
 **All contribution endpoints require:**
 1. **Authentication** (JWT token in Authorization header)
@@ -683,7 +753,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 5. Contribute Everything (Terminal + Route + Stops) ⭐ **NEW**
+### 5. Contribute Everything (Terminal + Route + Stops) - NEW
 **Endpoint:** `POST /contribute/contribute-all/`  
 **Description:** Submit complete transportation data: terminal, route, and stops all together  
 **Authentication:** Required + Email Verified  
@@ -838,7 +908,7 @@ Authorization: Bearer <access_token>
 | `/contribute/route/` | Add route to existing terminal | Verified terminal | Unverified route |
 | `/contribute/stop/` | Add stop to existing route | Verified route | Unverified stop |
 | `/contribute/complete-route/` | Add route + stops to terminal | Verified terminal | Unverified route + stops |
-| `/contribute/contribute-all/` ⭐ | Add terminal + route + stops | None | All unverified |
+| `/contribute/contribute-all/` | Add terminal + route + stops | None | All unverified |
 
 ### Contribution Workflow:
 1. **User registers** → Verification email sent automatically
@@ -1043,7 +1113,7 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### 2. Data Export Metadata ⭐ **NEW**
+### 2. Data Export Metadata - NEW
 **Endpoint:** `GET /metadata/`  
 **Description:** Lightweight endpoint to check if user-contributed data has changed (for weekly sync)  
 **Authentication:** Not required  

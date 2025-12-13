@@ -50,4 +50,9 @@ urlpatterns = [
     path('cached/routes/', views.cached_routes_export, name='cached-routes'),
     path('cached/regions/', views.cached_regions_export, name='cached-regions'),
     path('cached/metadata/', views.cached_metadata, name='cached-metadata'),
+
+    #Django User Analytics
+    path("analytics/", views.usage_analytics, name="usage-analytics"),
+    path("analytics/unique-users/", views.usage_analytics_unique_users, name="analytics-unique-users"),
+    path("analytics/all-logins/", views.usage_analytics_all_logins, name="analytics-all-logins"),
 ]

@@ -1,8 +1,9 @@
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import PasswordResetForm
 from django.contrib.auth.tokens import default_token_generator
@@ -15,7 +16,8 @@ from allauth.account.models import EmailAddress
 from functools import wraps
 from rest_framework.decorators import api_view, permission_classes
 from django.utils import timezone
-from django.db.models import Max
+from django.db.models import Max, Count
+from django.db.models.functions import TruncDate, TruncHour
 from django.db import transaction
 from .models import Terminal, Region, Route, ModeOfTransport, City, RouteStop, CachedExport
 from .serializers import (
@@ -122,6 +124,8 @@ class LoginView(APIView):
                     'id': user.id,
                     'username': user.username,
                     'email': user.email,
+                    "is_staff": user.is_staff,
+                    "is_superuser": user.is_superuser,
                 }
             }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -1025,3 +1029,47 @@ def cached_metadata(request):
                 'regions': '/api/export/regions-cities/'
             }
         })
+    
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def usage_analytics(request):
+    """Get login count per hour (total logins)"""
+    usage = (
+        OutstandingToken.objects
+        .filter(user__isnull=False)
+        .annotate(hour=TruncHour("created_at"))
+        .values("hour")
+        .annotate(count=Count("id"))
+        .order_by("hour")
+    )
+    return Response(list(usage))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def usage_analytics_unique_users(request):
+    """Get unique user count per hour"""
+    usage = (
+        OutstandingToken.objects
+        .filter(user__isnull=False)
+        .annotate(hour=TruncHour("created_at"))
+        .values("hour")
+        .annotate(unique_users=Count("user", distinct=True))
+        .order_by("hour")
+    )
+    return Response(list(usage))
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
+def usage_analytics_all_logins(request):
+    """Get all logins with username per hour"""
+    usage = (
+        OutstandingToken.objects
+        .filter(user__isnull=False)
+        .annotate(hour=TruncHour("created_at"))
+        .values("hour", "user__username", "user__id")
+        .annotate(count=Count("id"))
+        .order_by("hour", "user__username")
+    )
+    return Response(list(usage))

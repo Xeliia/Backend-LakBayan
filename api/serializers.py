@@ -96,7 +96,7 @@ class RouteSerializer(serializers.ModelSerializer):
         model = Route
         fields = [
             'id', 'mode', 'verified', 'description', 
-            'polyline', 'stops'
+            'polyline', 'stops', 'added_by'
         ]
 
 class BasicCitySerializer(serializers.ModelSerializer):
@@ -145,7 +145,7 @@ class TerminalContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Terminal
         fields = [
-            'name', 'description', 'latitude', 'longitude', 'city'
+            'name', 'description', 'latitude', 'longitude', 'city', 'added_by'
         ]
 
     def validate_latitude(self, value):
@@ -215,7 +215,7 @@ class RouteStopContributionSerializer(serializers.ModelSerializer):
             'terminal': {'required': False},
         }
     
-    def validate(self, data):
+    def validate(self, data): # type: ignore
         """
         Custom validation to ensure we have location data from SOMEWHERE
         (either a linked Terminal or manual Coordinates).

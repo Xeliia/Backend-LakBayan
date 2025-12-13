@@ -4,7 +4,8 @@
 
 **LakBayan** is a comprehensive transportation data API for the Philippines that provides information about terminals, routes, and transportation modes across different regions and cities. The API features **email verification requirements** for user contributions to ensure data quality and prevent spam.
 
-### Authentication & Account Management:
+### Authentication & Account Management
+
 - `POST /accounts/register/` - Register new user account (sends verification email)
 - `POST /accounts/login/` - Authenticate user and get JWT tokens
 - `POST /accounts/logout/` - Logout user and blacklist refresh token (requires auth)
@@ -13,16 +14,19 @@
 - `PATCH /accounts/profile/` - Partially update current user's profile (requires auth)
 - `DELETE /accounts/delete/` - Permanently delete user account (requires auth)
 
-### Email Verification:
+### Email Verification
+
 - `GET /email-verification/status/` - Check current user's email verification status (requires auth)
 - `POST /email-verification/resend/` - Resend email verification link (requires auth)
 
-### Terminals:
+### Terminals
+
 - `GET /terminals/city/<city_id>/` - Get all verified terminals in a specific city
 - `GET /terminals/region/<region_id>/` - Get all verified terminals in a specific region
 - `GET /terminals/nearby/` - Get terminals within specified radius of coordinates
 
-### User Contributions (Email Verification Required):
+### User Contributions (Email Verification Required)
+
 - `POST /contribute/terminal/` - Submit new terminal for verification (requires verified email)
 - `POST /contribute/route/` - Submit new route for verification (requires verified email)
 - `POST /contribute/stop/` - Submit new route stop for verification (requires verified email)
@@ -30,19 +34,23 @@
 - `POST /contribute/contribute-all/` - Submit complete everything terminals routes and stops (requires verified email)
 - `GET /my-contributions/` - View your contribution history (requires auth)
 
-### Helper Endpoints:
+### Helper Endpoints
+
 - `GET /cities/region/<region_id>/` - Get cities in a specific region
 - `GET /transport-modes/` - Get available transportation modes
 
-### Data Export (Legacy):
+### Data Export (Legacy)
+
 - `GET /complete/` - Export all transportation data (slow, generates on-demand)
 - `GET /metadata/` - Get metadata about the transportation data
 - `GET /export/regions-cities/` - Export regions and cities only
 - `GET /export/terminals/` - Export all terminals
 - `GET /export/routes-stops/` - Export all routes and stops
 
-### Cached Data Export (Recommended):
+### Cached Data Export (Recommended)
+
 **NEW: High-performance JSONB-cached endpoints for production use**
+
 - `GET /cached/complete/` - Get pre-cached complete transportation data
 - `GET /cached/terminals/` - Get pre-cached terminals data
 - `GET /cached/routes/` - Get pre-cached routes and stops data
@@ -50,19 +58,23 @@
 - `GET /cached/metadata/` - Get metadata about cached exports
 
 **Cache Features:**
+
 - Stored as JSONB in PostgreSQL for instant retrieval
 - Auto-updates when admins verify terminals/routes (5-minute cooldown)
 - Manual refresh via Django admin action
 - Includes version tracking and metadata
 - Significantly faster than legacy on-demand generation
 
-### Password Management:
+### Password Management
+
 **Note:** Cannot test reset password without frontend integration
+
 - `POST /accounts/forgot-password/` - Send password reset email (public)
 - `POST /accounts/reset-password/` - Reset password using email token (public)
 - `POST /accounts/change-password/` - Change password in settings (requires auth)
 
-### User Analytics:
+### User Analytics
+
 - `GET /analytics/` - Get login count per hour (requires auth)
 - `GET /analytics/unique-users/` - Get unique user count per hour (requires auth)
 - `GET /analytics/all-logins/` - Get all logins with usernames per hour (requires auth + admin)
@@ -70,6 +82,7 @@
 ---
 
 **Key Features:**
+
 - **JWT Authentication** - Secure user accounts with access/refresh tokens
 - **Email Verification** - Required for all user contributions to prevent spam
 - **Terminal Management** - Search terminals by city, region, or proximity
@@ -83,14 +96,16 @@
 
 ---
 
-
 ## Base URL
+
 ```
 http://127.0.0.1:8000/api/
 ```
 
 ## Authentication
+
 This API uses JWT (JSON Web Token) authentication. Include the access token in the Authorization header:
+
 ```
 Authorization: Bearer <access_token>
 ```
@@ -100,11 +115,13 @@ Authorization: Bearer <access_token>
 ## Account Management
 
 ### 1. Register User
+
 **Endpoint:** `POST /accounts/register/`  
 **Description:** Create a new user account and send verification email  
 **Authentication:** Not required  
 
 **Request Body:**
+
 ```json
 {
     "username": "testuser",
@@ -115,6 +132,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (201 Created):**
+
 ```json
 {
     "message": "Account Created Successfully",
@@ -132,11 +150,13 @@ Authorization: Bearer <access_token>
 **Note:** A verification email is automatically sent. User must verify email before contributing.
 
 ### 2. Login User
+
 **Endpoint:** `POST /accounts/login/`  
 **Description:** Authenticate user and get tokens  
 **Authentication:** Not required  
 
 **Request Body:**
+
 ```json
 {
     "username": "testuser",
@@ -145,6 +165,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
     "message": "Login Successful",
@@ -161,11 +182,13 @@ Authorization: Bearer <access_token>
 ```
 
 ### 3. Get User Profile
+
 **Endpoint:** `GET /accounts/profile/`  
 **Description:** Get current user's profile information  
 **Authentication:** Required  
 
 **Response (200 OK):**
+
 ```json
 {
     "id": 1,
@@ -175,11 +198,13 @@ Authorization: Bearer <access_token>
 ```
 
 ### 4. Update User Profile
+
 **Endpoint:** `PUT /accounts/profile/`  
 **Description:** Update current user's profile, can also change username too depending on the request body
 **Authentication:** Required  
 
 **Request Body:**
+
 ```json
 {
     "email": "newemail@example.com"
@@ -187,6 +212,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
     "id": 1,
@@ -196,11 +222,13 @@ Authorization: Bearer <access_token>
 ```
 
 ### 5. Logout User
+
 **Endpoint:** `POST /accounts/logout/`  
 **Description:** Logout user and blacklist refresh token  
 **Authentication:** Required  
 
 **Request Body:**
+
 ```json
 {
     "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
@@ -208,6 +236,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
     "message": "Successfully Logged Out"
@@ -215,11 +244,13 @@ Authorization: Bearer <access_token>
 ```
 
 ### 6. Delete Account
+
 **Endpoint:** `DELETE /accounts/delete/`  
 **Description:** Permanently delete user account  
 **Authentication:** Required  
 
 **Request Body:**
+
 ```json
 {
     "password": "securepassword123"
@@ -227,6 +258,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (204 No Content):**
+
 ```json
 {
     "message": "Account deleted successfully"
@@ -238,11 +270,13 @@ Authorization: Bearer <access_token>
 ### Password Management
 
 #### 1. Forgot Password (Public)
+
 **Endpoint:** `POST /accounts/forgot-password/`  
 **Description:** Send password reset email to user  
 **Authentication:** Not required  
 
 **Request Body:**
+
 ```json
 {
     "email": "user@example.com"
@@ -250,6 +284,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
     "message": "Password reset email sent successfully",
@@ -258,11 +293,13 @@ Authorization: Bearer <access_token>
 ```
 
 #### 2. Reset Password (Public)
+
 **Endpoint:** `POST /accounts/reset-password/`  
 **Description:** Reset password using token from email, uid and token should be provided when redirected
 **Authentication:** Not required  
 
 **Request Body:**
+
 ```json
 {
     "uid": "base64_encoded_user_id",
@@ -272,6 +309,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
     "message": "Password reset successfully",
@@ -280,11 +318,13 @@ Authorization: Bearer <access_token>
 ```
 
 #### 3. Change Password (Authenticated)
+
 **Endpoint:** `POST /accounts/change-password/`  
 **Description:** Change password for logged-in user  
 **Authentication:** Required (Bearer token)  
 
 **Request Body:**
+
 ```json
 {
     "current_password": "old_password",
@@ -294,6 +334,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
     "message": "Password changed successfully",
@@ -304,11 +345,13 @@ Authorization: Bearer <access_token>
 ## Email Verification
 
 ### 1. Check Email Verification Status
+
 **Endpoint:** `GET /email-verification/status/`  
 **Description:** Check if current user's email is verified  
 **Authentication:** Required  
 
 **Response (200 OK) - Verified:**
+
 ```json
 {
     "email_verified": true,
@@ -319,6 +362,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK) - Not Verified:**
+
 ```json
 {
     "email_verified": false,
@@ -329,11 +373,13 @@ Authorization: Bearer <access_token>
 ```
 
 ### 2. Resend Verification Email
+
 **Endpoint:** `POST /email-verification/resend/`  
 **Description:** Resend email verification link  
 **Authentication:** Required  
 
 **Response (200 OK) - Email Sent:**
+
 ```json
 {
     "message": "Verification email sent successfully",
@@ -342,6 +388,7 @@ Authorization: Bearer <access_token>
 ```
 
 **Response (200 OK) - Already Verified:**
+
 ```json
 {
     "message": "Email is already verified",
@@ -358,11 +405,13 @@ Authorization: Bearer <access_token>
 Three analytics endpoints to track login patterns and user activity.
 
 ### 1. Get Login Count Per Hour
+
 **Endpoint:** `GET /analytics/`  
 **Description:** Get total login count grouped by hour  
 **Authentication:** Required  
 
 **Response (200 OK):**
+
 ```json
 [
     {"hour": "2025-12-13T10:00:00Z", "count": 8},
@@ -374,11 +423,13 @@ Three analytics endpoints to track login patterns and user activity.
 **Use Case:** Track overall platform usage patterns over time.
 
 ### 2. Get Unique Users Per Hour
+
 **Endpoint:** `GET /analytics/unique-users/`  
 **Description:** Get count of unique users who logged in per hour  
 **Authentication:** Required  
 
 **Response (200 OK):**
+
 ```json
 [
     {"hour": "2025-12-13T10:00:00Z", "unique_users": 3},
@@ -390,11 +441,13 @@ Three analytics endpoints to track login patterns and user activity.
 **Use Case:** Understand how many different users are active per hour.
 
 ### 3. Get All Logins With Usernames (Admin Only)
+
 **Endpoint:** `GET /analytics/all-logins/`  
 **Description:** Get detailed login records with username, including duplicate users per hour  
 **Authentication:** Required + Admin Only (is_staff/is_superuser)  
 
 **Response (200 OK):**
+
 ```json
 [
     {"hour": "2025-12-13T10:00:00Z", "user__username": "axel", "user__id": 15, "count": 5},
@@ -404,6 +457,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Error (403 Forbidden) - Not Admin:**
+
 ```json
 {
     "detail": "You do not have permission to perform this action."
@@ -419,6 +473,7 @@ Three analytics endpoints to track login patterns and user activity.
 ## Terminal Management
 
 ### 1. Get Terminals by City
+
 **Endpoint:** `GET /terminals/city/<city_id>/`  
 **Description:** Get all verified terminals in a specific city with routes and stops  
 **Authentication:** Not required  
@@ -426,6 +481,7 @@ Three analytics endpoints to track login patterns and user activity.
 **Example:** `GET /terminals/city/1/`
 
 **Response (200 OK):**
+
 ```json
 [
     {
@@ -472,6 +528,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 2. Get Terminals by Region
+
 **Endpoint:** `GET /terminals/region/<region_id>/`  
 **Description:** Get all verified terminals in a specific region  
 **Authentication:** Not required  
@@ -481,11 +538,13 @@ Three analytics endpoints to track login patterns and user activity.
 **Response:** Same format as terminals by city
 
 ### 3. Get Nearby Terminals
+
 **Endpoint:** `GET /terminals/nearby/`  
 **Description:** Get terminals within specified radius of coordinates  
 **Authentication:** Not required  
 
 **Query Parameters:**
+
 - `lat` (required): Latitude
 - `lng` (required): Longitude  
 - `radius` (optional): Radius in kilometers (default: 25)
@@ -493,6 +552,7 @@ Three analytics endpoints to track login patterns and user activity.
 **Example:** `GET /terminals/nearby/?lat=14.3392&lng=121.0819&radius=10`
 
 **Response (200 OK):**
+
 ```json
 [
     {
@@ -514,6 +574,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Error Response (400 Bad Request):**
+
 ```json
 {
     "error": "lat and lng parameters are required"
@@ -525,15 +586,18 @@ Three analytics endpoints to track login patterns and user activity.
 ## User Contributions (Email Verification Required)
 
 **All contribution endpoints require:**
+
 1. **Authentication** (JWT token in Authorization header)
 2. **Email Verification** (user must have verified their email address)
 
 ### 1. Contribute Terminal
+
 **Endpoint:** `POST /contribute/terminal/`  
 **Description:** Submit new terminal for admin verification  
 **Authentication:** Required + Email Verified  
 
 **Request Body:**
+
 ```json
 {
     "name": "Biñan JAC Liner Terminal",
@@ -545,6 +609,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
     "message": "Terminal contribution submitted successfully",
@@ -561,6 +626,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Error (403 Forbidden) - Email Not Verified:**
+
 ```json
 {
     "error": "Email verification required",
@@ -574,6 +640,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Validation Requirements:**
+
 - `name`: Terminal name (required)
 - `description`: Terminal description (optional)
 - `latitude`: Must be between -90 and 90 (required)
@@ -581,11 +648,13 @@ Three analytics endpoints to track login patterns and user activity.
 - `city`: Must be a valid city ID (required)
 
 ### 2. Contribute Route
+
 **Endpoint:** `POST /contribute/route/`  
 **Description:** Submit new route to verified terminal  
 **Authentication:** Required + Email Verified  
 
 **Request Body:**
+
 ```json
 {
     "terminal": 1,
@@ -597,6 +666,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
     "message": "Route contribution submitted successfully",
@@ -613,6 +683,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Error (400 Bad Request) - Invalid Terminal:**
+
 ```json
 {
     "terminal": ["Can only add routes to verified terminals"]
@@ -620,6 +691,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Validation Requirements:**
+
 - `terminal`: Must be a verified terminal ID (required)
 - `destination_name`: Route destination (required)
 - `mode`: Must be a valid transport mode ID (required)
@@ -627,11 +699,13 @@ Three analytics endpoints to track login patterns and user activity.
 - `polyline`: GPS coordinates array (optional)
 
 ### 3. Contribute Route Stop
+
 **Endpoint:** `POST /contribute/stop/`  
 **Description:** Submit new stop to verified route  
 **Authentication:** Required + Email Verified  
 
 **Request Body:**
+
 ```json
 {
     "route": 1,
@@ -647,6 +721,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
     "message": "Route stop contribution submitted successfully",
@@ -666,6 +741,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Error (400 Bad Request) - Invalid Route:**
+
 ```json
 {
     "route": ["Can only add stops to verified routes"],
@@ -674,6 +750,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Validation Requirements:**
+
 - `route`: Must be a verified route ID (required)
 - `stop_name`: Name of the stop (required)
 - `fare`: Fare to this stop in PHP (required)
@@ -685,11 +762,13 @@ Three analytics endpoints to track login patterns and user activity.
 - `terminal`: Terminal ID if stop is at a terminal (optional)
 
 ### 4. Contribute Complete Route
+
 **Endpoint:** `POST /contribute/complete-route/`  
 **Description:** Submit route with multiple stops in one request  
 **Authentication:** Required + Email Verified  
 
 **Request Body:**
+
 ```json
 {
     "route": {
@@ -725,6 +804,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
     "message": "Complete route with stops submitted successfully",
@@ -735,6 +815,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Error Responses:**
+
 ```json
 {
     "error": "Invalid route data",
@@ -754,6 +835,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 5. Contribute Everything (Terminal + Route + Stops) - NEW
+
 **Endpoint:** `POST /contribute/contribute-all/`  
 **Description:** Submit complete transportation data: terminal, route, and stops all together  
 **Authentication:** Required + Email Verified  
@@ -761,6 +843,7 @@ Three analytics endpoints to track login patterns and user activity.
 **Use Case:** When user wants to add a completely new terminal with its routes and stops
 
 **Request Body:**
+
 ```json
 {
     "terminal": {
@@ -812,6 +895,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Response (201 Created):**
+
 ```json
 {
     "message": "Complete transportation data submitted successfully",
@@ -831,6 +915,7 @@ Three analytics endpoints to track login patterns and user activity.
 **Error Responses:**
 
 **Missing Required Structure (400 Bad Request):**
+
 ```json
 {
     "error": "Required structure: {\"terminal\": {...}, \"route\": {...}, \"stops\": [...]}"
@@ -838,6 +923,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Invalid Terminal Data (400 Bad Request):**
+
 ```json
 {
     "error": "Invalid terminal data",
@@ -849,19 +935,21 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Validation Requirements:**
+
 - **Terminal**: Same as individual terminal contribution
 - **Route**: Same as individual route contribution (but terminal will be auto-assigned)
 - **Stops**: Same as individual stop contribution (but route will be auto-assigned)
 - **All data**: Automatically marked as unverified regardless of input
 - **Atomic transaction**: If any part fails, entire submission is rolled back
 
-
 ### 6. My Contributions
+
 **Endpoint:** `GET /my-contributions/`  
 **Description:** View your contribution history and status  
 **Authentication:** Required  
 
 **Response (200 OK):**
+
 ```json
 {
     "terminals": {
@@ -899,7 +987,6 @@ Three analytics endpoints to track login patterns and user activity.
 }
 ```
 
-
 ### 🎯 **Contribution Types Summary:**
 
 | Endpoint | Purpose | Requirements | What's Created |
@@ -910,14 +997,16 @@ Three analytics endpoints to track login patterns and user activity.
 | `/contribute/complete-route/` | Add route + stops to terminal | Verified terminal | Unverified route + stops |
 | `/contribute/contribute-all/` | Add terminal + route + stops | None | All unverified |
 
-### Contribution Workflow:
+### Contribution Workflow
+
 1. **User registers** → Verification email sent automatically
 2. **User verifies email** → Can now contribute
 3. **User submits contributions** → Marked as `pending_verification`
 4. **Admin reviews** → Approves/rejects contributions
 5. **Approved contributions** → Become visible in public API endpoints
 
-### Important Notes:
+### Important Notes
+
 - **All contributions require email verification** to prevent spam
 - **Admin approval required** before contributions become public
 - **Sequential stop ordering** enforced for route stops
@@ -931,6 +1020,7 @@ Three analytics endpoints to track login patterns and user activity.
 ## Helper Endpoints
 
 ### 1. Get Cities by Region
+
 **Endpoint:** `GET /cities/region/<region_id>/`  
 **Description:** Get cities in a specific region (for contribution forms)  
 **Authentication:** Not required  
@@ -938,6 +1028,7 @@ Three analytics endpoints to track login patterns and user activity.
 **Example:** `GET /cities/region/1/`
 
 **Response (200 OK):**
+
 ```json
 [
     {
@@ -952,11 +1043,13 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 2. Get Transport Modes
+
 **Endpoint:** `GET /transport-modes/`  
 **Description:** Get available transportation modes (for contribution forms)  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 [
     {
@@ -982,11 +1075,13 @@ Three analytics endpoints to track login patterns and user activity.
 ## Data Export (Legacy)
 
 ### 1. Complete Data Export
+
 **Endpoint:** `GET /complete/`  
 **Description:** Export all verified transportation data with proper nesting: regions → cities → terminals → routes → route stops  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "regions": [
@@ -1114,6 +1209,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 2. Data Export Metadata - NEW
+
 **Endpoint:** `GET /metadata/`  
 **Description:** Lightweight endpoint to check if user-contributed data has changed (for weekly sync)  
 **Authentication:** Not required  
@@ -1121,6 +1217,7 @@ Three analytics endpoints to track login patterns and user activity.
 **Use Case:** Frontend weekly sync - check if data changed before downloading full dataset
 
 **Response (200 OK):**
+
 ```json
 {
     "last_updated": "2024-12-19T15:30:22Z",
@@ -1136,6 +1233,7 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 **Fields:**
+
 - `last_updated`: Timestamp of most recent user contribution
 - `data_version`: Human-readable version string for comparison  
 - `counts`: Current counts of verified content
@@ -1143,11 +1241,13 @@ Three analytics endpoints to track login patterns and user activity.
 - `note`: Explanation of what's tracked
 
 ### 3. Export Regions and Cities
+
 **Endpoint:** `GET /export/regions-cities/`  
 **Description:** Export only regions and cities data  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "regions": [
@@ -1168,11 +1268,13 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 4. Export Terminals
+
 **Endpoint:** `GET /export/terminals/`  
 **Description:** Export all verified terminals with routes  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "terminals": [
@@ -1198,11 +1300,13 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 5. Export Routes and Stops
+
 **Endpoint:** `GET /export/routes-stops/`  
 **Description:** Export all routes with their stops  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "routes": [
@@ -1243,7 +1347,8 @@ Three analytics endpoints to track login patterns and user activity.
 
 **NEW:** High-performance JSONB-cached endpoints that serve pre-computed data stored in PostgreSQL for lightning-fast response times.
 
-### Performance Benefits:
+### Performance Benefits
+
 - **Instant Response** - Data is pre-computed and stored as JSONB in PostgreSQL
 - **Auto-Updates** - Cache refreshes automatically when admins verify terminals/routes
 - **Versioned** - Each cache includes version timestamp for tracking
@@ -1251,11 +1356,13 @@ Three analytics endpoints to track login patterns and user activity.
 - **Efficient** - Significantly faster than legacy on-demand generation
 
 ### 1. Cached Complete Export
+
 **Endpoint:** `GET /cached/complete/`  
 **Description:** Get pre-cached complete transportation data (fastest option)  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "regions": [
@@ -1279,11 +1386,13 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 2. Cached Terminals Export
+
 **Endpoint:** `GET /cached/terminals/`  
 **Description:** Get pre-cached terminals data  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "terminals": [
@@ -1301,11 +1410,13 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 3. Cached Routes Export
+
 **Endpoint:** `GET /cached/routes/`  
 **Description:** Get pre-cached routes and stops data  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "routes": [
@@ -1321,11 +1432,13 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 4. Cached Regions Export
+
 **Endpoint:** `GET /cached/regions/`  
 **Description:** Get pre-cached regions and cities data  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "regions": [
@@ -1340,11 +1453,13 @@ Three analytics endpoints to track login patterns and user activity.
 ```
 
 ### 5. Cached Metadata
+
 **Endpoint:** `GET /cached/metadata/`  
 **Description:** Get metadata about all cached exports  
 **Authentication:** Not required  
 
 **Response (200 OK):**
+
 ```json
 {
     "cache_info": {
@@ -1383,25 +1498,30 @@ Three analytics endpoints to track login patterns and user activity.
 
 ### Cache Update System
 
-#### Automatic Updates:
+#### Automatic Updates
+
 - Cache auto-refreshes when terminals or routes are verified by admin
 - 5-minute cooldown between auto-updates to prevent excessive refreshes
 - Background threading ensures no blocking of admin operations
 - Updates triggered on `post_save` signal for Terminal and Route models
 
-#### Manual Updates:
+#### Manual Updates
+
 Admins can manually refresh all caches via Django admin panel:
+
 1. Navigate to "Cached Exports" in Django admin
 2. Select any cached export entries
 3. Choose "Refresh All Export Caches" from Actions dropdown
 4. Click "Go" to trigger manual update
 
-#### Management Command:
+#### Management Command
+
 ```bash
 python manage.py update_export_cache
 ```
 
 This command:
+
 - Generates all four export types (complete, terminals, routes, regions)
 - Updates metadata (file size, record count)
 - Creates version timestamps
@@ -1412,6 +1532,7 @@ This command:
 ## Error Responses
 
 ### Validation Errors (400 Bad Request)
+
 ```json
 {
     "username": ["Username already exists"],
@@ -1421,6 +1542,7 @@ This command:
 ```
 
 ### Authentication Required (401 Unauthorized)
+
 ```json
 {
     "detail": "Authentication credentials were not provided."
@@ -1428,6 +1550,7 @@ This command:
 ```
 
 ### Email Verification Required (403 Forbidden)
+
 ```json
 {
     "error": "Email verification required",
@@ -1441,6 +1564,7 @@ This command:
 ```
 
 ### Permission Denied (403 Forbidden)
+
 ```json
 {
     "detail": "You do not have permission to perform this action."
@@ -1448,6 +1572,7 @@ This command:
 ```
 
 ### Not Found (404 Not Found)
+
 ```json
 {
     "detail": "Not found."
@@ -1455,6 +1580,7 @@ This command:
 ```
 
 ### Rate Limit Exceeded (429 Too Many Requests)
+
 ```json
 {
     "detail": "Rate limit exceeded. Please try again later."
@@ -1462,6 +1588,7 @@ This command:
 ```
 
 ### Server Error (500 Internal Server Error)
+
 ```json
 {
     "error": "Failed to send verification email",
@@ -1473,27 +1600,31 @@ This command:
 
 ## Important Notes
 
-### Email Verification System:
+### Email Verification System
+
 - **Registration:** Verification email sent automatically
 - **Rate Limiting:** 1 verification email per 3 minutes per user
 - **Verification:** One-time verification (permanent once verified)
 - **Contributions:** All require verified email address
 - **Email Provider:** Uses Gmail SMTP for reliable delivery
 
-### Authentication & Tokens:
+### Authentication & Tokens
+
 - **Access Tokens:** Expire in 60 minutes
 - **Refresh Tokens:** Expire in 7 days, rotate on refresh
 - **Token Blacklisting:** Logout blacklists refresh tokens
 - **Login Attempts:** Maximum 5 failed attempts per 5 minutes
 
-### Data & Verification:
+### Data & Verification
+
 - **User Contributions:** Require email verification + admin approval
 - **Public Data:** Only verified terminals and routes returned
 - **Geographic Data:** Coordinates in decimal degrees (WGS84)
 - **Currency:** All fares in Philippine Pesos (PHP)
 - **Time Values:** In minutes from origin terminal
 
-### Rate Limiting:
+### Rate Limiting
+
 - **Login Failures:** 5 attempts per 5 minutes
 - **Email Verification:** 1 email per 3 minutes
 - **API Calls:** No rate limiting on public endpoints
@@ -1503,6 +1634,7 @@ This command:
 ## Getting Started
 
 ### 1. Register Account & Verify Email
+
 ```bash
 # 1. Register a new account
 curl -X POST https://lakbayan-backend.onrender.com/api/accounts/register/ \
@@ -1526,12 +1658,14 @@ curl -X POST https://lakbayan-backend.onrender.com/api/accounts/login/ \
 ```
 
 ### 2. Check Email Verification Status
+
 ```bash
 curl -X GET https://lakbayan-backend.onrender.com/api/email-verification/status/ \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### 3. Contribute Transportation Data
+
 ```bash
 # Contribute a new terminal (requires verified email)
 curl -X POST https://lakbayan-backend.onrender.com/api/contribute/terminal/ \
@@ -1547,12 +1681,14 @@ curl -X POST https://lakbayan-backend.onrender.com/api/contribute/terminal/ \
 ```
 
 ### 4. View Your Contributions
+
 ```bash
 curl -X GET https://lakbayan-backend.onrender.com/api/my-contributions/ \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
 ### 5. Get Public Transportation Data
+
 ```bash
 # Get complete transportation data
 curl https://lakbayan-backend.onrender.com/api/complete/
@@ -1568,30 +1704,35 @@ curl https://lakbayan-backend.onrender.com/api/terminals/city/1/
 
 ## API Summary
 
-### Public Endpoints (No Authentication):
+### Public Endpoints (No Authentication)
+
 - Data export endpoints (legacy and cached)
 - Terminal search endpoints  
 - Helper endpoints (cities, transport modes)
 
-### Protected Endpoints (Authentication Required):
+### Protected Endpoints (Authentication Required)
+
 - Account management
 - Email verification status/resend
 - User contribution history
 
-### Contribution Endpoints (Authentication + Email Verification):
+### Contribution Endpoints (Authentication + Email Verification)
+
 - Terminal contributions
 - Route contributions  
 - Route stop contributions
 - Complete route contributions
 
-### Email Verification Features:
+### Email Verification Features
+
 - Automatic verification email on registration
 - Manual resend verification email
 - One-time verification (permanent)
 - Rate limiting (3-minute cooldown)
 - Gmail SMTP for reliable delivery
 
-### Cache Management Features:
+### Cache Management Features
+
 - Automatic cache updates on data verification
 - 5-minute cooldown between auto-updates
 - Manual refresh via Django admin

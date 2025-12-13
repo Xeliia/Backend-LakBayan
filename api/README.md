@@ -79,6 +79,21 @@
 - `GET /analytics/unique-users/` - Get unique user count per hour (requires auth)
 - `GET /analytics/all-logins/` - Get all logins with usernames per hour (requires auth + admin)
 
+### Lakbay Points (LP) System
+
+**NEW: Gamification system to reward contributors**
+
+- `GET /user/<user_id>/lakbay-points/` - Get a user's LP info and contribution stats
+- `POST /terminal/<terminal_id>/upvote/` - Upvote a terminal (+1 LP to creator, requires auth)
+- `POST /terminal/<terminal_id>/downvote/` - Downvote a terminal (-1 LP from creator, requires auth)
+- `GET /analytics/lakbay-leaderboards/` - Get LP leaderboard/pie chart data for all contributors
+
+**LP Earning Methods:**
+
+- **Verification Bonus**: +20 to +80 random LP when admin verifies your terminal or route
+- **Community Upvotes**: +1 LP each time someone upvotes your contributed terminal
+- **Community Downvotes**: -1 LP each time someone downvotes your contributed terminal (minimum 0 LP)
+
 ---
 
 **Key Features:**
@@ -93,6 +108,8 @@
 - **JSONB Export Cache** - Lightning-fast data exports using PostgreSQL JSONB
 - **Auto-Cache Updates** - Cache automatically refreshes when data is verified
 - **Contributor Attribution** - All terminals and routes include `added_by` user info for pie chart analytics
+- **Lakbay Points (LP)** - Gamification system rewarding contributors with points for verified content and upvotes
+- **Leaderboards** - Track top contributors with LP rankings and pie chart data
 - **Philippine Focus** - Designed for Philippine transportation systems
 
 ---
@@ -468,6 +485,151 @@ Three analytics endpoints to track login patterns and user activity.
 **Use Case:** Detailed admin analytics - see which users are most active and when.
 
 **Security Note:** Only accessible to admin/superuser accounts to protect user privacy.
+
+---
+
+## Lakbay Points (LP) System
+
+A gamification system that rewards users for contributing to the transportation database. Users earn Lakbay Points (LP) when their contributions are verified by admins and when other users upvote their terminals.
+
+### How LP is Earned
+
+| Action | LP Change |
+|--------|-----------|
+| Terminal gets verified by admin | +20 to +80 (random) |
+| Route gets verified by admin | +20 to +80 (random) |
+| Someone upvotes your terminal | +1 |
+| Someone downvotes your terminal | -1 (minimum 0 LP) |
+
+### 1. Get User's Lakbay Points
+
+**Endpoint:** `GET /user/<user_id>/lakbay-points/`  
+**Description:** Get a specific user's LP info and contribution statistics  
+**Authentication:** Not required  
+
+**Example:** `GET /user/5/lakbay-points/`
+
+**Response (200 OK):**
+
+```json
+{
+    "user_id": 5,
+    "username": "alice",
+    "lakbay_points": 450,
+    "verified_terminals": 8,
+    "verified_routes": 12
+}
+```
+
+**Error (404 Not Found):**
+
+```json
+{
+    "error": "User not found"
+}
+```
+
+### 2. Upvote Terminal
+
+**Endpoint:** `POST /terminal/<terminal_id>/upvote/`  
+**Description:** Upvote a terminal. Adds +1 to terminal rating and +1 LP to the terminal creator.  
+**Authentication:** Required  
+
+**Example:** `POST /terminal/42/upvote/`
+
+**Response (200 OK):**
+
+```json
+{
+    "message": "Upvote successful",
+    "new_rating": 15,
+    "creator_lp": 451
+}
+```
+
+**Error (404 Not Found):**
+
+```json
+{
+    "error": "Terminal not found"
+}
+```
+
+### 3. Downvote Terminal
+
+**Endpoint:** `POST /terminal/<terminal_id>/downvote/`  
+**Description:** Downvote a terminal. Subtracts 1 from terminal rating and 1 LP from the terminal creator (minimum 0 LP).  
+**Authentication:** Required  
+
+**Example:** `POST /terminal/42/downvote/`
+
+**Response (200 OK):**
+
+```json
+{
+    "message": "Downvote successful",
+    "new_rating": 14,
+    "creator_lp": 449
+}
+```
+
+**Error (404 Not Found):**
+
+```json
+{
+    "error": "Terminal not found"
+}
+```
+
+### 4. Get LP Leaderboard (Pie Chart Data)
+
+**Endpoint:** `GET /analytics/lakbay-leaderboards/`  
+**Description:** Get all contributors' LP distribution for leaderboard/pie chart display  
+**Authentication:** Not required  
+
+**Response (200 OK):**
+
+```json
+{
+    "total_lp_pool": 2500,
+    "contributors": [
+        {
+            "username": "alice",
+            "lakbay_points": 450,
+            "percentage": 18.0,
+            "verified_terminals": 8,
+            "verified_routes": 12
+        },
+        {
+            "username": "bob",
+            "lakbay_points": 380,
+            "percentage": 15.2,
+            "verified_terminals": 5,
+            "verified_routes": 8
+        },
+        {
+            "username": "charlie",
+            "lakbay_points": 220,
+            "percentage": 8.8,
+            "verified_terminals": 3,
+            "verified_routes": 4
+        }
+    ]
+}
+```
+
+**Use Cases:**
+- Display contributor leaderboard in frontend
+- Create pie chart showing contribution distribution
+- Gamify the contribution experience
+
+### LP System Features
+
+- **Automatic Profile Creation** - UserProfile with LP is auto-created when user registers
+- **Verification Rewards** - Random 20-80 LP awarded when admin verifies terminal/route
+- **Community Upvotes** - Users can upvote terminals, awarding 1 LP to creator
+- **Leaderboard Support** - API endpoint provides percentage calculations for pie charts
+- **Admin Visibility** - UserProfile admin panel shows LP, verified terminals, and routes count
 
 ---
 

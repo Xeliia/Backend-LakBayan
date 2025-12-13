@@ -55,4 +55,10 @@ urlpatterns = [
     path("analytics/", views.usage_analytics, name="usage-analytics"),
     path("analytics/unique-users/", views.usage_analytics_unique_users, name="analytics-unique-users"),
     path("analytics/all-logins/", views.usage_analytics_all_logins, name="analytics-all-logins"),
+
+    #LP System
+    path('user/<int:user_id>/lakbay-points/', views.user_lakbay_points, name='user_lakbay_points'),
+    path('terminal/<int:terminal_id>/upvote/', views.upvote_terminal, name='upvote_terminal'),
+    path('terminal/<int:terminal_id>/downvote/', views.downvote_terminal, name='downvote_terminal'),
+    path('analytics/lakbay-leaderboards/', views.lakbay_leaderboards, name='lakbay_pie_chart'),
 ]

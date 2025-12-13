@@ -4,7 +4,23 @@ from django.contrib import messages
 from django.urls import path
 from django.shortcuts import redirect
 from django.http import HttpResponseRedirect
-from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop, CachedExport
+from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop, CachedExport, UserProfile
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'lakbay_points', 'verified_terminals_count', 'verified_routes_count')
+    search_fields = ('user__username', 'user__email')
+    ordering = ('-lakbay_points',)
+    readonly_fields = ('user',)
+    
+    def verified_terminals_count(self, obj):
+        return obj.user.added_terminals.filter(verified=True).count()
+    verified_terminals_count.short_description = 'Verified Terminals' # type: ignore
+    
+    def verified_routes_count(self, obj):
+        return obj.user.added_routes.filter(verified=True).count()
+    verified_routes_count.short_description = 'Verified Routes' # type: ignore
 
 
 @admin.register(Region)

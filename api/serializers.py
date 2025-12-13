@@ -241,3 +241,29 @@ class RouteStopContributionSerializer(serializers.ModelSerializer):
         if route and RouteStop.objects.filter(route=route, order=value).exists():
             raise serializers.ValidationError("A stop with this order already exists for this route")
         return value
+    
+# For user LP info
+class UserLakbayPointsSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(source='id')
+    username = serializers.CharField()
+    lakbay_points = serializers.SerializerMethodField()
+    verified_terminals = serializers.SerializerMethodField()
+    verified_routes = serializers.SerializerMethodField()
+    
+    def get_lakbay_points(self, obj):
+        if hasattr(obj, 'profile'):
+            return obj.profile.lakbay_points
+        return 0
+    
+    def get_verified_terminals(self, obj):
+        return obj.added_terminals.filter(verified=True).count()
+    
+    def get_verified_routes(self, obj):
+        return obj.added_routes.filter(verified=True).count()
+
+# For pie chart
+class LakbayPieChartSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    lakbay_points = serializers.IntegerField()
+    percentage = serializers.FloatField()
+    verified_terminals = serializers.IntegerField()

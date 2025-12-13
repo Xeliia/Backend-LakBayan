@@ -30,6 +30,7 @@ from .serializers import (
     TerminalContributionSerializer,
     RouteContributionSerializer,
     RouteStopContributionSerializer,
+    UserLakbayPointsSerializer,
 )
 
 #Account System
@@ -1071,3 +1072,89 @@ def usage_analytics_all_logins(request):
         .order_by("hour", "user__username")
     )
     return Response(list(usage))
+
+@api_view(['GET'])
+def user_lakbay_points(request, user_id):
+    """Get a user's Lakbay Points info"""
+    try:
+        user = User.objects.get(id=user_id)
+        serializer = UserLakbayPointsSerializer(user)
+        return Response(serializer.data)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upvote_terminal(request, terminal_id):
+    """Upvote a terminal - adds 1 to rating and 1 LP to creator"""
+    try:
+        terminal = Terminal.objects.get(id=terminal_id)
+        terminal.rating += 1
+        terminal.save()
+        
+        # Award 1 LP to terminal creator
+        creator_lp = 0
+        if terminal.added_by and hasattr(terminal.added_by, 'profile'):
+            terminal.added_by.profile.lakbay_points += 1 # type: ignore
+            terminal.added_by.profile.save() # type: ignore
+            creator_lp = terminal.added_by.profile.lakbay_points # type: ignore
+        
+        return Response({
+            'message': 'Upvote successful',
+            'new_rating': terminal.rating,
+            'creator_lp': creator_lp
+        })
+    except Terminal.DoesNotExist:
+        return Response({'error': 'Terminal not found'}, status=404)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def downvote_terminal(request, terminal_id):
+    """Downvote a terminal - subtracts 1 from rating and 1 LP from creator"""
+    try:
+        terminal = Terminal.objects.get(id=terminal_id)
+        terminal.rating -= 1
+        terminal.save()
+        
+        # Deduct 1 LP from terminal creator (minimum 0)
+        creator_lp = 0
+        if terminal.added_by and hasattr(terminal.added_by, 'profile'):
+            terminal.added_by.profile.lakbay_points = max(0, terminal.added_by.profile.lakbay_points - 1) # type: ignore
+            terminal.added_by.profile.save() # type: ignore
+            creator_lp = terminal.added_by.profile.lakbay_points # type: ignore
+        
+        return Response({
+            'message': 'Downvote successful',
+            'new_rating': terminal.rating,
+            'creator_lp': creator_lp
+        })
+    except Terminal.DoesNotExist:
+        return Response({'error': 'Terminal not found'}, status=404)
+
+@api_view(['GET'])
+def lakbay_leaderboards(request):
+    """Get all users' LP distribution for pie chart"""
+    from .models import UserProfile
+    
+    users = User.objects.filter(profile__lakbay_points__gt=0).select_related('profile').order_by('-profile__lakbay_points')
+    total_lp = sum(u.profile.lakbay_points for u in users) # type: ignore
+    
+    data = []
+    for user in users:
+        lp = user.profile.lakbay_points # type: ignore
+        percentage = (lp / total_lp * 100) if total_lp > 0 else 0
+        verified_terminals = user.added_terminals.filter(verified=True).count() # type: ignore
+        verified_routes = user.added_routes.filter(verified=True).count() # type: ignore
+        
+        data.append({
+            'username': user.username,
+            'lakbay_points': lp,
+            'percentage': round(percentage, 2),
+            'verified_terminals': verified_terminals,
+            'verified_routes': verified_routes
+        })
+    
+    return Response({
+        'total_lp_pool': total_lp,
+        'contributors': data
+    })

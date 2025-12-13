@@ -232,3 +232,76 @@ def auto_update_cache_on_verify(sender, instance, created, **kwargs):
                 logger.error(f"Cache update failed: {str(e)}")
         
         Thread(target=update_cache, daemon=True).start()
+
+# Lakbay Points (LP) System
+class UserProfile(models.Model):
+    """Extended user profile for Lakbay Points"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    lakbay_points = models.IntegerField(default=0)
+    
+    def __str__(self):
+        return f"{self.user.username}'s Profile - {self.lakbay_points} LP"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """Auto-create UserProfile when User is created"""
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    """Auto-save UserProfile when User is saved"""
+    if hasattr(instance, 'profile'):
+        instance.profile.save()
+
+
+# Track verification status to award LP only on first verification
+_terminal_verified_cache = {}
+_route_verified_cache = {}
+
+@receiver(post_save, sender=Terminal)
+def award_lp_on_terminal_verify(sender, instance, created, **kwargs):
+    """Award 20-80 random LP when admin verifies a terminal"""
+    import random
+    
+    if created:
+        # Store initial state for new terminals
+        _terminal_verified_cache[instance.id] = instance.verified
+        return
+    
+    # Check if verified changed from False to True
+    was_verified = _terminal_verified_cache.get(instance.id, False)
+    _terminal_verified_cache[instance.id] = instance.verified
+    
+    if instance.verified and not was_verified and instance.added_by:
+        # Ensure user has a profile
+        profile, _ = UserProfile.objects.get_or_create(user=instance.added_by)
+        points = random.randint(20, 80)
+        profile.lakbay_points += points
+        profile.save()
+        logger.info(f"Awarded {points} LP to {instance.added_by.username} for verified terminal #{instance.id}")
+
+
+@receiver(post_save, sender=Route)
+def award_lp_on_route_verify(sender, instance, created, **kwargs):
+    """Award 20-80 random LP when admin verifies a route"""
+    import random
+    
+    if created:
+        # Store initial state for new routes
+        _route_verified_cache[instance.id] = instance.verified
+        return
+    
+    # Check if verified changed from False to True
+    was_verified = _route_verified_cache.get(instance.id, False)
+    _route_verified_cache[instance.id] = instance.verified
+    
+    if instance.verified and not was_verified and instance.added_by:
+        # Ensure user has a profile
+        profile, _ = UserProfile.objects.get_or_create(user=instance.added_by)
+        points = random.randint(20, 80)
+        profile.lakbay_points += points
+        profile.save()
+        logger.info(f"Awarded {points} LP to {instance.added_by.username} for verified route #{instance.id}")

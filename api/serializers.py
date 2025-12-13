@@ -112,7 +112,7 @@ class TerminalSerializer(serializers.ModelSerializer):
         model = Terminal
         fields = [
             'id', 'name', 'description', 'latitude', 'longitude',
-            'city', 'verified', 'rating', 'routes'
+            'city', 'verified', 'rating', 'routes', 'added_by'
         ]
     
     def get_routes(self, obj):
@@ -145,7 +145,7 @@ class TerminalContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Terminal
         fields = [
-            'name', 'description', 'latitude', 'longitude', 'city', 'added_by'
+            'name', 'description', 'latitude', 'longitude', 'city'
         ]
 
     def validate_latitude(self, value):

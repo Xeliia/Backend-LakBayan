@@ -92,6 +92,7 @@
 - **Location-Based Search** - Find nearby terminals using coordinates
 - **JSONB Export Cache** - Lightning-fast data exports using PostgreSQL JSONB
 - **Auto-Cache Updates** - Cache automatically refreshes when data is verified
+- **Contributor Attribution** - All terminals and routes include `added_by` user info for pie chart analytics
 - **Philippine Focus** - Designed for Philippine transportation systems
 
 ---
@@ -497,6 +498,7 @@ Three analytics endpoints to track login patterns and user activity.
         },
         "verified": true,
         "rating": 0,
+        "added_by": {"id": 5, "username": "alice"},
         "routes": [
             {
                 "id": 1,
@@ -508,6 +510,7 @@ Three analytics endpoints to track login patterns and user activity.
                 "verified": true,
                 "description": "Papontang Gil Puyat LRT",
                 "polyline": null,
+                "added_by": {"id": 5, "username": "alice"},
                 "stops": [
                     {
                         "id": 1,
@@ -568,6 +571,7 @@ Three analytics endpoints to track login patterns and user activity.
         },
         "verified": true,
         "rating": 0,
+        "added_by": {"id": 5, "username": "alice"},
         "routes": []
     }
 ]
@@ -1107,6 +1111,7 @@ Three analytics endpoints to track login patterns and user activity.
                             },
                             "verified": true,
                             "rating": 0,
+                            "added_by": {"id": 5, "username": "alice"},
                             "routes": [
                                 {
                                     "id": 1,
@@ -1119,6 +1124,7 @@ Three analytics endpoints to track login patterns and user activity.
                                     "verified": true,
                                     "description": "Papontang Gil Puyat LRT",
                                     "polyline": null,
+                                    "added_by": {"id": 5, "username": "alice"},
                                     "stops": [
                                         {
                                             "id": 1,
@@ -1172,6 +1178,7 @@ Three analytics endpoints to track login patterns and user activity.
                             },
                             "verified": true,
                             "rating": 0,
+                            "added_by": {"id": 7, "username": "bob"},
                             "routes": []
                         }
                     ]
@@ -1194,6 +1201,7 @@ Three analytics endpoints to track login patterns and user activity.
                             },
                             "verified": true,
                             "rating": 0,
+                            "added_by": {"id": 8, "username": "charlie"},
                             "routes": []
                         }
                     ]
@@ -1291,6 +1299,7 @@ Three analytics endpoints to track login patterns and user activity.
             },
             "verified": true,
             "rating": 0,
+            "added_by": {"id": 5, "username": "alice"},
             "routes": []
         }
     ],
@@ -1323,6 +1332,7 @@ Three analytics endpoints to track login patterns and user activity.
             },
             "verified": true,
             "description": "Papontang Gil Puyat LRT",
+            "added_by": {"id": 5, "username": "alice"},
             "stops": [
                 {
                     "id": 1,
@@ -1373,7 +1383,7 @@ Three analytics endpoints to track login patterns and user activity.
                 {
                     "id": 1,
                     "name": "Biñan",
-                    "terminals": [...]
+                    "terminals": [...with added_by field included...]
                 }
             ]
         }
@@ -1402,6 +1412,7 @@ Three analytics endpoints to track login patterns and user activity.
             "latitude": "14.339165",
             "longitude": "121.081884",
             "city": {...},
+            "added_by": {"id": 5, "username": "alice"},
             "routes": [...]
         }
     ],
@@ -1424,6 +1435,7 @@ Three analytics endpoints to track login patterns and user activity.
             "id": 1,
             "mode": {...},
             "terminal": {...},
+            "added_by": {"id": 5, "username": "alice"},
             "stops": [...]
         }
     ],

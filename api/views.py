@@ -1044,7 +1044,6 @@ def usage_analytics(request):
     )
     return Response(list(usage))
 
-
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def usage_analytics_unique_users(request):
@@ -1058,7 +1057,6 @@ def usage_analytics_unique_users(request):
         .order_by("hour")
     )
     return Response(list(usage))
-
 
 @api_view(["GET"])
 @permission_classes([IsAdminUser])

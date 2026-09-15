@@ -145,9 +145,12 @@ Authorization: Bearer <access_token>
     "username": "testuser",
     "email": "test@example.com",
     "password": "securepassword123",
-    "password_confirm": "securepassword123"
+    "password_confirm": "securepassword123",
+    "gender": "prefer not to say"
 }
 ```
+
+`gender` is optional and accepts exactly one of: `male`, `female`, or `prefer not to say`. If omitted, it defaults to `prefer not to say`.
 
 **Response (201 Created):**
 
@@ -160,6 +163,7 @@ Authorization: Bearer <access_token>
         "id": 1,
         "username": "testuser",
         "email": "test@example.com",
+        "gender": "prefer not to say",
         "date_joined": "2025-10-09T15:30:00.123456Z"
     }
 }
@@ -211,9 +215,12 @@ Authorization: Bearer <access_token>
 {
     "id": 1,
     "username": "testuser",
-    "email": "test@example.com"
+    "email": "test@example.com",
+    "gender": "prefer not to say"
 }
 ```
+
+The `gender` value is stored on the user's `UserProfile` and can be edited through Django Admin or this profile endpoint.
 
 ### 4. Update User Profile
 
@@ -225,7 +232,8 @@ Authorization: Bearer <access_token>
 
 ```json
 {
-    "email": "newemail@example.com"
+    "email": "newemail@example.com",
+    "gender": "female"
 }
 ```
 
@@ -235,7 +243,8 @@ Authorization: Bearer <access_token>
 {
     "id": 1,
     "username": "testuser",
-    "email": "newemail@example.com"
+    "email": "newemail@example.com",
+    "gender": "female"
 }
 ```
 
@@ -450,13 +459,13 @@ Three analytics endpoints to track login patterns and user activity.
 
 ```json
 [
-    {"hour": "2025-12-13T10:00:00Z", "unique_users": 3},
-    {"hour": "2025-12-13T11:00:00Z", "unique_users": 2},
-    {"hour": "2025-12-13T12:00:00Z", "unique_users": 1}
+    {"hour": "2025-12-13T10:00:00Z", "user__profile__gender": "female", "unique_users": 3},
+    {"hour": "2025-12-13T10:00:00Z", "user__profile__gender": "male", "unique_users": 2},
+    {"hour": "2025-12-13T11:00:00Z", "user__profile__gender": "prefer not to say", "unique_users": 1}
 ]
 ```
 
-**Use Case:** Understand how many different users are active per hour.
+**Use Case:** Understand how many different users of each gender are active per hour.
 
 ### 3. Get All Logins With Usernames (Admin Only)
 

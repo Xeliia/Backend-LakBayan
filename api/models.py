@@ -234,10 +234,20 @@ def auto_update_cache_on_verify(sender, instance, created, **kwargs):
         Thread(target=update_cache, daemon=True).start()
 
 # Lakbay Points (LP) System
+class GenderChoices(models.TextChoices):
+    MALE = 'male', 'Male'
+    FEMALE = 'female', 'Female'
+    PREFER_NOT_TO_SAY = 'prefer not to say', 'Prefer not to say'
+
 class UserProfile(models.Model):
     """Extended user profile for Lakbay Points"""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     lakbay_points = models.IntegerField(default=0)
+    gender = models.CharField(
+        max_length=18,
+        choices=GenderChoices.choices,
+        default=GenderChoices.PREFER_NOT_TO_SAY,
+    )
     
     def __str__(self):
         return f"{self.user.username}'s Profile - {self.lakbay_points} LP"

@@ -1,15 +1,16 @@
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop
+from .models import GenderChoices, Region, City, Terminal, ModeOfTransport, Route, RouteStop, UserProfile
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     password_confirm = serializers.CharField(write_only=True)
+    gender = serializers.ChoiceField(choices=GenderChoices.choices, required=False)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'password_confirm']
+        fields = ['username', 'email', 'password', 'password_confirm', 'gender']
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
@@ -25,11 +26,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
+        gender = validated_data.pop('gender', GenderChoices.PREFER_NOT_TO_SAY)
         user = User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
         )
+        UserProfile.objects.filter(user=user).update(gender=gender)
 
         return user
     
@@ -54,10 +57,26 @@ class UserLoginSerializer(serializers.Serializer):
         return attrs
     
 class UserProfileSerializer(serializers.ModelSerializer):
+    gender = serializers.ChoiceField(
+        choices=GenderChoices.choices,
+        source='profile.gender',
+        required=False,
+    )
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email']
+        fields = ['id', 'username', 'email', 'gender']
         read_only_fields = ['id']
+
+    def update(self, instance, validated_data):
+        profile_data = validated_data.pop('profile', {})
+        instance = super().update(instance, validated_data)
+        if 'gender' in profile_data:
+            UserProfile.objects.update_or_create(
+                user=instance,
+                defaults={'gender': profile_data['gender']},
+            )
+        return instance
 
     def validate_username(self, value):
         """Ensure username is unique"""

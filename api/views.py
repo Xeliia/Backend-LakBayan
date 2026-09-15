@@ -70,6 +70,7 @@ class RegisterView(generics.CreateAPIView):
                 'id': user.id,
                 'username': user.username,
                 'email': user.email,
+                'gender': user.profile.gender,
                 'date_joined': user.date_joined
             }
         }
@@ -1048,14 +1049,14 @@ def usage_analytics(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def usage_analytics_unique_users(request):
-    """Get unique user count per hour"""
+    """Get unique user count per hour and gender."""
     usage = (
         OutstandingToken.objects
         .filter(user__isnull=False)
         .annotate(hour=TruncHour("created_at"))
-        .values("hour")
+        .values("hour", "user__profile__gender")
         .annotate(unique_users=Count("user", distinct=True))
-        .order_by("hour")
+        .order_by("hour", "user__profile__gender")
     )
     return Response(list(usage))
 

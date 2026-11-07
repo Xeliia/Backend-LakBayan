@@ -1,7 +1,14 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from api.models import CachedExport, Region, Terminal, Route
-from api.serializers import RegionSerializer, TerminalSerializer, RouteSerializer
+from api.serializers import (
+    EXPORT_CURRENCY,
+    EXPORT_FORMAT_VERSION,
+    RegionSerializer,
+    RouteSerializer,
+    TerminalSerializer,
+    serialize_fare_configuration,
+)
 
 class Command(BaseCommand):
     help = 'Update cached JSON exports in database'
@@ -16,7 +23,8 @@ class Command(BaseCommand):
         self.stdout.write("Generating complete export...")
         regions = Region.objects.prefetch_related(
             'city_set__terminals__origin_routes__stops',
-            'city_set__terminals__origin_routes__mode'
+            'city_set__terminals__origin_routes__mode',
+            'city_set__terminals__origin_routes__fare_policy',
         ).all()
         
         complete_data = {
@@ -25,6 +33,9 @@ class Command(BaseCommand):
             'total_terminals': Terminal.objects.filter(verified=True).count(),
             'total_routes': Route.objects.filter(verified=True).count(),
             'export_timestamp': timestamp.isoformat(),
+            'format_version': EXPORT_FORMAT_VERSION,
+            'currency': EXPORT_CURRENCY,
+            **serialize_fare_configuration(),
         }
         
         cache_obj, created = CachedExport.objects.update_or_create(

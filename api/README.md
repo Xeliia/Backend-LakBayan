@@ -65,6 +65,12 @@
 - Includes version tracking and metadata
 - Significantly faster than legacy on-demand generation
 
+The complete export also includes `format_version` (currently `2`), `currency` (currently `PHP`), and the normalized fare configuration objects: `passenger_types`, `fare_products`, and `fare_policies`. Existing records without the newer optional metadata continue to export with `null` values.
+
+Routes may include optional `line_id`, `direction`, and `fare_policy` fields. Terminals and stops may include optional stable `station_id` values. Stops may also include `time_from_previous` and `distance_from_previous`.
+
+Fare policies with `type: "matrix"` preserve an ordered `stations` list and a numeric square `values` matrix. Matrix values are preserved as supplied; the API does not apply passenger discounts a second time.
+
 ### Password Management
 
 **Note:** Cannot test reset password without frontend integration

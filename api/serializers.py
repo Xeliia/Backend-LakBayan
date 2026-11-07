@@ -1,7 +1,22 @@
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from rest_framework import serializers
-from .models import GenderChoices, Region, City, Terminal, ModeOfTransport, Route, RouteStop, UserProfile
+from .models import (
+    FarePolicy,
+    FareProduct,
+    GenderChoices,
+    PassengerType,
+    Region,
+    City,
+    Terminal,
+    ModeOfTransport,
+    Route,
+    RouteStop,
+    UserProfile,
+)
+
+EXPORT_FORMAT_VERSION = 2
+EXPORT_CURRENCY = 'PHP'
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
@@ -96,7 +111,8 @@ class RouteStopSerializer(serializers.ModelSerializer):
     class Meta:
         model = RouteStop
         fields = [
-            'id', 'stop_name', 'fare', 'distance', 'time', 'order',
+            'id', 'station_id', 'stop_name', 'fare', 'distance',
+            'distance_from_previous', 'time', 'time_from_previous', 'order',
             'latitude', 'longitude', 'terminal'
         ]
 
@@ -110,12 +126,14 @@ class ModeOfTransportSerializer(serializers.ModelSerializer):
 class RouteSerializer(serializers.ModelSerializer):
     mode = ModeOfTransportSerializer(read_only=True)
     stops = RouteStopSerializer(many=True, read_only=True)
+    fare_policy = serializers.CharField(source='fare_policy_id', read_only=True)
     
     class Meta:
         model = Route
         fields = [
-            'id', 'mode', 'verified', 'description', 
-            'polyline', 'stops', 'added_by'
+            'id', 'destination_name', 'line_id', 'direction', 'mode',
+            'fare_policy', 'verified', 'description', 'polyline',
+            'stops', 'added_by'
         ]
 
 class BasicCitySerializer(serializers.ModelSerializer):
@@ -130,7 +148,7 @@ class TerminalSerializer(serializers.ModelSerializer):
     class Meta:
         model = Terminal
         fields = [
-            'id', 'name', 'description', 'latitude', 'longitude',
+            'id', 'station_id', 'name', 'description', 'latitude', 'longitude',
             'city', 'verified', 'rating', 'routes', 'added_by'
         ]
     
@@ -164,7 +182,7 @@ class TerminalContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Terminal
         fields = [
-            'name', 'description', 'latitude', 'longitude', 'city'
+            'station_id', 'name', 'description', 'latitude', 'longitude', 'city'
         ]
 
     def validate_latitude(self, value):
@@ -213,7 +231,8 @@ class RouteContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
         fields = [
-            'terminal', 'destination_name', 'mode', 'description', 'polyline'
+            'terminal', 'destination_name', 'line_id', 'direction', 'mode',
+            'fare_policy', 'description', 'polyline'
         ]
 
     def validate_terminal(self, value):
@@ -225,13 +244,17 @@ class RouteStopContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = RouteStop
         fields = [
-            'route', 'stop_name', 'terminal', 'fare', 'distance', 
-            'time', 'order', 'latitude', 'longitude'
+            'route', 'station_id', 'stop_name', 'terminal', 'fare', 'distance',
+            'distance_from_previous', 'time', 'time_from_previous', 'order',
+            'latitude', 'longitude'
         ]
         extra_kwargs = {
             'latitude': {'required': False},
             'longitude': {'required': False},
             'terminal': {'required': False},
+            'station_id': {'required': False},
+            'distance_from_previous': {'required': False},
+            'time_from_previous': {'required': False},
         }
     
     def validate(self, data): # type: ignore
@@ -286,3 +309,63 @@ class LakbayPieChartSerializer(serializers.Serializer):
     lakbay_points = serializers.IntegerField()
     percentage = serializers.FloatField()
     verified_terminals = serializers.IntegerField()
+
+
+class FarePolicySerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source='policy_type', read_only=True)
+    passenger_type = serializers.CharField(source='passenger_type.code', allow_null=True, read_only=True)
+    stations = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FarePolicy
+        fields = ['type', 'media', 'passenger_type', 'stations', 'values']
+
+    def get_stations(self, obj):
+        return list(obj.stations.values_list('station_id', flat=True))
+
+
+class PassengerTypeSerializer(serializers.ModelSerializer):
+    discount = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PassengerType
+        fields = ['discount']
+
+    def get_discount(self, obj):
+        return {
+            'type': obj.discount_type,
+            'value': float(obj.discount_value),
+        }
+
+
+class FareProductSerializer(serializers.ModelSerializer):
+    passenger_types = serializers.SerializerMethodField()
+    fare_policy = serializers.CharField(source='fare_policy_id', allow_null=True, read_only=True)
+
+    class Meta:
+        model = FareProduct
+        fields = ['display_name', 'payment_method', 'passenger_types', 'fare_policy']
+
+    def get_passenger_types(self, obj):
+        return list(obj.passenger_types.values_list('code', flat=True))
+
+
+def serialize_fare_configuration():
+    """Return normalized fare configuration for the versioned complete export."""
+    passenger_types = {
+        passenger_type.code: PassengerTypeSerializer(passenger_type).data
+        for passenger_type in PassengerType.objects.all()
+    }
+    fare_products = {
+        product.product_id: FareProductSerializer(product).data
+        for product in FareProduct.objects.prefetch_related('passenger_types').all()
+    }
+    fare_policies = {
+        policy.policy_id: FarePolicySerializer(policy).data
+        for policy in FarePolicy.objects.select_related('passenger_type').prefetch_related('stations').all()
+    }
+    return {
+        'passenger_types': passenger_types,
+        'fare_products': fare_products,
+        'fare_policies': fare_policies,
+    }

@@ -4,7 +4,20 @@ from django.contrib import messages
 from django.urls import path
 from django.shortcuts import redirect
 from django.http import HttpResponseRedirect
-from .models import Region, City, Terminal, ModeOfTransport, Route, RouteStop, CachedExport, UserProfile
+from .models import (
+    CachedExport,
+    City,
+    FarePolicy,
+    FarePolicyStation,
+    FareProduct,
+    ModeOfTransport,
+    PassengerType,
+    Region,
+    Route,
+    RouteStop,
+    Terminal,
+    UserProfile,
+)
 
 
 @admin.register(UserProfile)
@@ -23,6 +36,34 @@ class UserProfileAdmin(admin.ModelAdmin):
     verified_routes_count.short_description = 'Verified Routes' # type: ignore
 
 
+@admin.register(PassengerType)
+class PassengerTypeAdmin(admin.ModelAdmin):
+    list_display = ('code', 'discount_type', 'discount_value')
+    list_filter = ('discount_type',)
+    search_fields = ('code',)
+
+
+class FarePolicyStationInline(admin.TabularInline):
+    model = FarePolicyStation
+    extra = 1
+    ordering = ('order',)
+
+
+@admin.register(FarePolicy)
+class FarePolicyAdmin(admin.ModelAdmin):
+    list_display = ('policy_id', 'policy_type', 'media', 'passenger_type')
+    list_filter = ('policy_type', 'media', 'passenger_type')
+    search_fields = ('policy_id', 'media')
+    inlines = [FarePolicyStationInline]
+
+
+@admin.register(FareProduct)
+class FareProductAdmin(admin.ModelAdmin):
+    list_display = ('product_id', 'display_name', 'payment_method', 'fare_policy')
+    list_filter = ('payment_method', 'fare_policy')
+    search_fields = ('product_id', 'display_name')
+
+
 @admin.register(Region)
 class RegionAdmin(admin.ModelAdmin):
     list_display = ('id', 'name')
@@ -39,7 +80,7 @@ class CityAdmin(admin.ModelAdmin):
 @admin.register(Terminal)
 class TerminalAdmin(admin.ModelAdmin):
     list_display = (
-        'id', 'name', 'city', 'latitude', 'longitude',
+        'id', 'station_id', 'name', 'city', 'latitude', 'longitude',
         'verified', 'rating', 'added_by', 'created_at'
     )
     list_filter = ('verified', 'city', 'added_by')
@@ -57,14 +98,18 @@ class ModeOfTransportAdmin(admin.ModelAdmin):
 class RouteStopInline(admin.TabularInline):
     model = RouteStop
     extra = 1
-    fields = ('order', 'stop_name', 'terminal', 'fare', 'distance', 'time', 'latitude', 'longitude')
+    fields = (
+        'order', 'station_id', 'stop_name', 'terminal', 'fare', 'distance',
+        'distance_from_previous', 'time', 'time_from_previous',
+        'latitude', 'longitude',
+    )
     ordering = ('order',)
 
 @admin.register(Route)
 class RouteAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'mode', 'verified', 'added_by']
-    list_filter = ['mode', 'verified', 'terminal__city']
-    search_fields = ['terminal__name', 'destination_name', 'description']
+    list_display = ['__str__', 'line_id', 'direction', 'mode', 'fare_policy', 'verified', 'added_by']
+    list_filter = ['mode', 'fare_policy', 'verified', 'terminal__city']
+    search_fields = ['terminal__name', 'destination_name', 'line_id', 'description']
     inlines = [RouteStopInline]
     
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
@@ -75,7 +120,10 @@ class RouteAdmin(admin.ModelAdmin):
 
 @admin.register(RouteStop)
 class RouteStopAdmin(admin.ModelAdmin):
-    list_display = ['route', 'order', 'stop_name', 'terminal', 'fare', 'latitude', 'longitude']
+    list_display = [
+        'route', 'order', 'station_id', 'stop_name', 'terminal', 'fare',
+        'distance_from_previous', 'time_from_previous', 'latitude', 'longitude',
+    ]
     list_filter = ['route__terminal', 'terminal']
     ordering = ['route', 'order']
     

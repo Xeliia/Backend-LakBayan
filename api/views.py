@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.db.models import Max, Count
 from django.db.models.functions import TruncDate, TruncHour
 from django.db import transaction
-from .models import Terminal, Region, Route, ModeOfTransport, City, RouteStop, CachedExport
+from .models import CachedExport, City, FarePolicy, ModeOfTransport, Region, Route, RouteStop, Terminal
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
@@ -31,6 +31,9 @@ from .serializers import (
     RouteContributionSerializer,
     RouteStopContributionSerializer,
     UserLakbayPointsSerializer,
+    EXPORT_CURRENCY,
+    EXPORT_FORMAT_VERSION,
+    serialize_fare_configuration,
 )
 
 #Account System
@@ -429,14 +432,19 @@ def complete_data_export(request):
     # Get all regions
     regions = Region.objects.prefetch_related(
         'city_set__terminals__origin_routes__stops',
-        'city_set__terminals__origin_routes__mode'
+        'city_set__terminals__origin_routes__mode',
+        'city_set__terminals__origin_routes__fare_policy',
     ).all()
     
     # Get transport modes
-    terminal_last_updated = Terminal.objects.aggregate(Max('updated_at'))['updated_at__max']
+    latest_timestamps = [
+        Terminal.objects.aggregate(Max('updated_at'))['updated_at__max'],
+        Route.objects.aggregate(Max('updated_at'))['updated_at__max'],
+        RouteStop.objects.aggregate(Max('updated_at'))['updated_at__max'],
+    ]
     
     # Get metadata
-    last_updated = terminal_last_updated or timezone.now()
+    last_updated = max((timestamp for timestamp in latest_timestamps if timestamp is not None), default=timezone.now())
     
     total_terminals = Terminal.objects.filter(verified=True).count()
     total_routes = Route.objects.filter(verified=True).count()
@@ -449,7 +457,10 @@ def complete_data_export(request):
         'last_updated': last_updated,
         'total_terminals': total_terminals,
         'total_routes': total_routes,
-        'export_timestamp': timezone.now()
+        'export_timestamp': timezone.now(),
+        'format_version': EXPORT_FORMAT_VERSION,
+        'currency': EXPORT_CURRENCY,
+        **serialize_fare_configuration(),
     }
     
     return Response(response_data)
@@ -667,11 +678,20 @@ def contribute_complete_route(request):
                 return Response({
                     'error': 'Terminal must exist and be verified'
                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            fare_policy_id = data['route'].get('fare_policy')
+            if fare_policy_id and not FarePolicy.objects.filter(pk=fare_policy_id).exists():
+                return Response({
+                    'error': 'Fare policy does not exist'
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             # 2. Create Route (unverified) - USE DIRECT MODEL CREATION
             route = Route.objects.create(
                 terminal=terminal,
                 destination_name=data['route']['destination_name'],
+                line_id=data['route'].get('line_id'),
+                direction=data['route'].get('direction'),
+                fare_policy_id=fare_policy_id,
                 mode_id=data['route']['mode'],
                 description=data['route'].get('description', ''),
                 polyline=data['route'].get('polyline'),
@@ -698,10 +718,13 @@ def contribute_complete_route(request):
                 # Create stop directly
                 stop = RouteStop.objects.create(
                     route=route,  # Pass the route object directly
+                    station_id=stop_data.get('station_id'),
                     stop_name=stop_data['stop_name'],
                     fare=stop_data['fare'],
                     distance=stop_data.get('distance'),
+                    distance_from_previous=stop_data.get('distance_from_previous'),
                     time=stop_data.get('time'),
+                    time_from_previous=stop_data.get('time_from_previous'),
                     order=stop_data.get('order', i + 1),
                     latitude=stop_data.get('latitude'),
                     longitude=stop_data.get('longitude'),
@@ -757,6 +780,7 @@ def contribute_all(request):
                 }, status=status.HTTP_400_BAD_REQUEST)
             
             terminal = Terminal.objects.create(
+                station_id=terminal_data.get('station_id'),
                 name=terminal_data['name'],
                 description=terminal_data.get('description', ''),
                 latitude=terminal_data['latitude'],
@@ -779,10 +803,19 @@ def contribute_all(request):
                 return Response({
                     'error': f'Missing required route fields: {missing_fields}'
                 }, status=status.HTTP_400_BAD_REQUEST)
+
+            fare_policy_id = route_data.get('fare_policy')
+            if fare_policy_id and not FarePolicy.objects.filter(pk=fare_policy_id).exists():
+                return Response({
+                    'error': 'Fare policy does not exist'
+                }, status=status.HTTP_400_BAD_REQUEST)
             
             route = Route.objects.create(
                 terminal=terminal,
                 destination_name=route_data['destination_name'],
+                line_id=route_data.get('line_id'),
+                direction=route_data.get('direction'),
+                fare_policy_id=fare_policy_id,
                 mode_id=route_data['mode'],
                 description=route_data.get('description', ''),
                 polyline=route_data.get('polyline'),
@@ -808,10 +841,13 @@ def contribute_all(request):
                 # Create stop directly
                 stop = RouteStop.objects.create(
                     route=route,
+                    station_id=stop_data.get('station_id'),
                     stop_name=stop_data['stop_name'],
                     fare=stop_data['fare'],
                     distance=stop_data.get('distance'),
+                    distance_from_previous=stop_data.get('distance_from_previous'),
                     time=stop_data.get('time'),
+                    time_from_previous=stop_data.get('time_from_previous'),
                     order=stop_data.get('order', i + 1),
                     latitude=stop_data.get('latitude'),
                     longitude=stop_data.get('longitude'),

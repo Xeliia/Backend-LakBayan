@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from threading import Thread
+from decimal import Decimal
 import logging
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ class City(models.Model):
 # Terminals Table
 class Terminal(models.Model):
     name = models.CharField(max_length=200, blank=True, null=True)
+    station_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     description = models.TextField(blank=True, null=True)
     latitude = models.DecimalField(
         max_digits=9, decimal_places=6,
@@ -78,6 +80,7 @@ class ModeOfTransport(models.Model):
     FARE_TYPE_CHOICES = [
         ('fixed', 'Fixed'),
         ('distance_based', 'Distance Based'),
+        ('matrix', 'Matrix'),
     ]
 
     mode_name = models.CharField(max_length=20, choices=MODE_CHOICES)
@@ -93,7 +96,17 @@ class ModeOfTransport(models.Model):
 class Route(models.Model):
     terminal = models.ForeignKey('Terminal', on_delete=models.CASCADE, related_name='origin_routes')
     destination_name = models.CharField(max_length=200)
+    line_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
+    direction = models.CharField(max_length=100, blank=True, null=True)
     mode = models.ForeignKey('ModeOfTransport', on_delete=models.CASCADE, related_name='routes')
+    fare_policy = models.ForeignKey(
+        'FarePolicy',
+        on_delete=models.SET_NULL,
+        related_name='routes',
+        blank=True,
+        null=True,
+        to_field='policy_id',
+    )
     verified = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True) 
     updated_at = models.DateTimeField(auto_now=True)
@@ -109,10 +122,13 @@ class Route(models.Model):
 class RouteStop(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='stops')
     stop_name = models.CharField(max_length=200)
+    station_id = models.CharField(max_length=100, blank=True, null=True, db_index=True)
     terminal = models.ForeignKey(Terminal, on_delete=models.SET_NULL, null=True, blank=True, related_name='route_stops')
     fare = models.DecimalField(max_digits=10, decimal_places=2)
     distance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    distance_from_previous = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     time = models.IntegerField(null=True, blank=True)
+    time_from_previous = models.IntegerField(null=True, blank=True)
     order = models.PositiveIntegerField()
     latitude = models.DecimalField(
         max_digits=9, decimal_places=6,
@@ -153,6 +169,100 @@ class RouteStop(models.Model):
 
     def __str__(self):
         return f"Stop {self.order}: {self.stop_name} - {self.route}"
+
+
+class PassengerType(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    discount_type = models.CharField(
+        max_length=20,
+        choices=[('none', 'None'), ('percentage', 'Percentage')],
+        default='none',
+    )
+    discount_value = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
+
+    def clean(self):
+        super().clean()
+        if self.discount_type == 'none' and self.discount_value != 0:
+            raise ValidationError("A passenger type with no discount must have a value of 0.")
+
+    def __str__(self):
+        return self.code
+
+
+class FarePolicy(models.Model):
+    POLICY_TYPE_CHOICES = [
+        ('fixed', 'Fixed'),
+        ('distance_based', 'Distance Based'),
+        ('matrix', 'Matrix'),
+    ]
+
+    policy_id = models.CharField(max_length=100, primary_key=True)
+    policy_type = models.CharField(max_length=20, choices=POLICY_TYPE_CHOICES)
+    media = models.CharField(max_length=100)
+    passenger_type = models.ForeignKey(
+        PassengerType,
+        on_delete=models.SET_NULL,
+        related_name='fare_policies',
+        blank=True,
+        null=True,
+    )
+    values = models.JSONField(default=list, blank=True)
+
+    def clean(self):
+        super().clean()
+        if self.policy_type != 'matrix':
+            return
+
+        stations = list(self.stations.values_list('station_id', flat=True)) if self.pk else []  # type: ignore[attr-defined]
+        matrix = self.values
+        if not isinstance(matrix, list) or len(matrix) != len(stations):
+            raise ValidationError("A matrix fare policy must have one row per station.")
+        if any(not isinstance(row, list) or len(row) != len(stations) for row in matrix):
+            raise ValidationError("A matrix fare policy must have one value per station in every row.")
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) for row in matrix for value in row):
+            raise ValidationError("Matrix fare values must be numeric.")
+
+    def __str__(self):
+        return self.policy_id
+
+
+class FarePolicyStation(models.Model):
+    policy = models.ForeignKey(FarePolicy, on_delete=models.CASCADE, related_name='stations')
+    station_id = models.CharField(max_length=100)
+    order = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['order']
+        constraints = [
+            models.UniqueConstraint(fields=['policy', 'station_id'], name='unique_policy_station'),
+            models.UniqueConstraint(fields=['policy', 'order'], name='unique_policy_station_order'),
+        ]
+
+    def __str__(self):
+        return f"{self.policy.policy_id}: {self.station_id}"
+
+
+class FareProduct(models.Model):
+    product_id = models.CharField(max_length=100, primary_key=True)
+    display_name = models.CharField(max_length=200)
+    payment_method = models.CharField(max_length=100)
+    passenger_types = models.ManyToManyField(PassengerType, related_name='fare_products', blank=True)
+    fare_policy = models.ForeignKey(
+        FarePolicy,
+        on_delete=models.SET_NULL,
+        related_name='fare_products',
+        blank=True,
+        null=True,
+        to_field='policy_id',
+    )
+
+    def __str__(self):
+        return self.product_id
     
 class CachedExport(models.Model):
     """Store pre-computed JSON exports for fast frontend access"""

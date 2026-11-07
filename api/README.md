@@ -827,6 +827,7 @@ A gamification system that rewards users for contributing to the transportation 
 - `latitude`: Must be between -90 and 90 (required)
 - `longitude`: Must be between -180 and 180 (required)
 - `city`: Must be a valid city ID (required)
+- `station_id`: Stable station identifier (optional)
 
 ### 2. Contribute Route
 
@@ -876,6 +877,9 @@ A gamification system that rewards users for contributing to the transportation 
 - `terminal`: Must be a verified terminal ID (required)
 - `destination_name`: Route destination (required)
 - `mode`: Must be a valid transport mode ID (required)
+- `line_id`: Stable route line identifier (optional)
+- `direction`: Route direction (optional)
+- `fare_policy`: Existing fare policy ID (optional)
 - `description`: Route description (optional)
 - `polyline`: GPS coordinates array (optional)
 
@@ -937,7 +941,10 @@ A gamification system that rewards users for contributing to the transportation 
 - `fare`: Fare to this stop in PHP (required)
 - `distance`: Distance from origin in km (optional)
 - `time`: Travel time from origin in minutes (optional)
+- `time_from_previous`: Travel time from the previous stop in minutes (optional)
+- `distance_from_previous`: Distance from the previous stop in kilometers (optional)
 - `order`: Stop sequence number (required, must be unique per route)
+- `station_id`: Stable station identifier (optional)
 - `latitude`: Stop latitude -90 to 90 (required)
 - `longitude`: Stop longitude -180 to 180 (required)
 - `terminal`: Terminal ID if stop is at a terminal (optional)
@@ -1254,6 +1261,41 @@ A gamification system that rewards users for contributing to the transportation 
 ---
 
 ## Data Export (Legacy)
+
+### Export Format v2
+
+The complete export endpoints use format version `2` and include the existing nested hierarchy: `regions -> cities -> terminals -> routes -> stops`.
+
+The following top-level fields are included in `/complete/` and `/cached/complete/`:
+
+```json
+{
+    "format_version": 2,
+    "currency": "PHP",
+    "last_updated": "timestamp",
+    "export_timestamp": "timestamp",
+    "total_terminals": 76,
+    "total_routes": 43,
+    "passenger_types": {},
+    "fare_products": {},
+    "fare_policies": {}
+}
+```
+
+Additional nested fields are nullable for legacy records:
+
+- Terminals: `station_id`
+- Routes: `line_id`, `direction`, and `fare_policy`
+- Stops: `station_id`, `time_from_previous`, and `distance_from_previous`
+- Modes: `fare_type` supports `fixed`, `distance_based`, and `matrix`
+
+Fare configuration is data-driven. `passenger_types` contains discount rules, `fare_products` contains payment methods and eligible passenger types, and `fare_policies` contains policy media, optional passenger type, ordered station IDs, and fare values. Matrix policies use a square numeric `values` matrix whose row and column indexes follow the `stations` order. Values are preserved as supplied and are not discounted again by the API.
+
+The narrower export endpoints include only the fields relevant to their scope:
+
+- `/export/terminals/` and `/cached/terminals/` include terminal and nested route/stop fields.
+- `/export/routes-stops/` and `/cached/routes/` include route and stop fields.
+- `/export/regions-cities/` and `/cached/regions/` contain geographic hierarchy data.
 
 ### 1. Complete Data Export
 

@@ -21,7 +21,7 @@ from .models import (
 	Terminal,
 )
 from .serializers import FarePolicySerializer, RouteSerializer, serialize_fare_configuration
-from .services.fares import calculate_distance_fare
+from .services.fares import calculate_distance_fare, calculate_matrix_fare
 from .admin import FarePolicyAdmin
 
 
@@ -253,3 +253,23 @@ class SchemaUpgradeTests(TestCase):
 			list(senior_policy.stations.values_list('station_id', flat=True)),
 		)
 		self.assertEqual(student_policy.values, senior_policy.values)
+
+	def test_matrix_fare_lookup_returns_final_matrix_value(self):
+		policy = FarePolicy.objects.create(
+			policy_id='matrix_lookup', policy_type='matrix', media='ticket',
+			values=[[0, 25], [25, 0]],
+		)
+		FarePolicyStation.objects.create(policy=policy, station_id='station-a', order=1)
+		FarePolicyStation.objects.create(policy=policy, station_id='station-b', order=2)
+		passenger = PassengerType.objects.create(code='regular')
+		product = FareProduct.objects.create(
+			product_id='matrix_product', display_name='Matrix Product',
+			payment_method='ticket', fare_policy=policy,
+		)
+		product.passenger_types.add(passenger)
+
+		self.assertEqual(calculate_matrix_fare(policy, 'station-a', 'station-b'), Decimal('25'))
+		response = APIClient().get('/api/fare/?fare_product=matrix_product&origin_station_id=station-a&destination_station_id=station-b')
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.data['fare'], '25')

@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -12,6 +14,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from allauth.account.models import EmailAddress
 from functools import wraps
 from rest_framework.decorators import api_view, permission_classes
@@ -35,6 +38,8 @@ from .serializers import (
     EXPORT_FORMAT_VERSION,
     serialize_fare_configuration,
 )
+from .models import FareProduct, PassengerType
+from .services.fares import calculate_distance_fare, calculate_matrix_fare
 
 #Account System
 class RegisterView(generics.CreateAPIView):
@@ -936,6 +941,62 @@ def get_transport_modes(request):
         } 
         for mode in modes
     ])
+
+
+@api_view(['GET'])
+def fare_lookup(request):
+    """Calculate a configured fare without changing legacy route-stop behavior."""
+    product_id = request.GET.get('fare_product')
+    if not product_id:
+        return Response({'error': 'fare_product is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        product = FareProduct.objects.select_related('fare_policy').prefetch_related('passenger_types').get(
+            pk=product_id
+        )
+    except FareProduct.DoesNotExist:
+        return Response({'error': 'Fare product not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    policy = product.fare_policy
+    if policy is None:
+        return Response({'error': 'Fare product has no fare policy'}, status=status.HTTP_400_BAD_REQUEST)
+
+    passenger_code = request.GET.get('passenger_type')
+    passenger_types = list(product.passenger_types.all())
+    if passenger_code:
+        passenger_type = next((item for item in passenger_types if item.code == passenger_code), None)
+        if passenger_type is None:
+            return Response({'error': 'Passenger type is not supported by this fare product'}, status=status.HTTP_400_BAD_REQUEST)
+    elif len(passenger_types) == 1:
+        passenger_type = passenger_types[0]
+    else:
+        passenger_type = policy.passenger_type
+
+    try:
+        if policy.policy_type == 'matrix':
+            origin = request.GET.get('origin_station_id')
+            destination = request.GET.get('destination_station_id')
+            if not origin or not destination:
+                return Response({
+                    'error': 'origin_station_id and destination_station_id are required for matrix fares'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            fare = calculate_matrix_fare(policy, origin, destination)
+        elif policy.policy_type == 'distance_based':
+            distance = request.GET.get('distance_km')
+            if distance is None:
+                return Response({'error': 'distance_km is required for distance-based fares'}, status=status.HTTP_400_BAD_REQUEST)
+            fare = calculate_distance_fare(policy, Decimal(distance), passenger_type)
+        else:
+            return Response({'error': 'Unsupported fare policy type'}, status=status.HTTP_400_BAD_REQUEST)
+    except (InvalidOperation, ValidationError) as error:
+        return Response({'error': str(error)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({
+        'fare_product': product.product_id,
+        'fare_policy': policy.policy_id,
+        'passenger_type': passenger_type.code if passenger_type else None,
+        'fare': str(fare),
+    })
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

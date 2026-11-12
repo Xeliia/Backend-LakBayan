@@ -34,6 +34,7 @@ urlpatterns = [
     # Helper
     path('cities/region/<int:region_id>/', views.get_cities_by_region, name='cities-by-region'),
     path('transport-modes/', views.get_transport_modes, name='transport-modes'),
+    path('fare/', views.fare_lookup, name='fare-lookup'),
 
     #Email Verificaiton
     path('email-verification/status/', views.check_email_verification_status, name='email-verification-status'),

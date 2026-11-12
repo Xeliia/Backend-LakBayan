@@ -40,3 +40,25 @@ def calculate_distance_fare(
         fare = min(fare, policy.maximum_fare)
 
     return fare
+
+
+def calculate_matrix_fare(
+    policy: FarePolicy,
+    origin_station_id: str,
+    destination_station_id: str,
+) -> Decimal:
+    """Return the final fare from an ordered matrix without reapplying discounts."""
+    if policy.policy_type != 'matrix':
+        raise ValidationError('The selected fare policy is not matrix-based.')
+
+    station_ids = list(policy.stations.order_by('order').values_list('station_id', flat=True))
+    try:
+        origin_index = station_ids.index(origin_station_id)
+        destination_index = station_ids.index(destination_station_id)
+    except ValueError as error:
+        raise ValidationError('Origin and destination stations must belong to the fare policy.') from error
+
+    try:
+        return Decimal(str(policy.values[origin_index][destination_index]))
+    except (IndexError, TypeError, ValueError) as error:
+        raise ValidationError('Fare matrix dimensions or values are invalid.') from error

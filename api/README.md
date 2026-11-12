@@ -1207,9 +1207,27 @@ A gamification system that rewards users for contributing to the transportation 
 
 ## Helper Endpoints
 
-### 1. Get Cities by Region
+- `GET /fare/` - Calculate a configured matrix or distance-based fare
+
+### Fare Lookup
+
+**Endpoint:** `GET /fare/`
+**Description:** Calculate a configured matrix or distance-based fare
+**Authentication:** Not required
 
 **Endpoint:** `GET /cities/region/<region_id>/`  
+
+Runtime fare lookup:
+
+```text
+GET /fare/?fare_product=<product_id>&origin_station_id=<station_id>&destination_station_id=<station_id>
+GET /fare/?fare_product=<product_id>&distance_km=<distance>&passenger_type=<passenger_type>
+```
+
+Matrix fares require origin and destination station IDs and return the final matrix value without applying another discount. Distance-based fares require `distance_km`; the selected product's passenger type is used for the base-fare discount, floor rounding, ceiling-based increments, and maximum-fare cap.
+
+### 1. Get Cities by Region
+
 **Description:** Get cities in a specific region (for contribution forms)  
 **Authentication:** Not required  
 

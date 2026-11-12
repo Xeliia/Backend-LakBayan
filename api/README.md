@@ -60,7 +60,7 @@
 **Cache Features:**
 
 - Stored as JSONB in PostgreSQL for instant retrieval
-- Auto-updates when admins verify terminals/routes (5-minute cooldown)
+- Auto-updates when verified transport records or fare configuration changes (5-minute cooldown)
 - Manual refresh via Django admin action
 - Includes version tracking and metadata
 - Significantly faster than legacy on-demand generation
@@ -1289,7 +1289,29 @@ Additional nested fields are nullable for legacy records:
 - Stops: `station_id`, `time_from_previous`, and `distance_from_previous`
 - Modes: `fare_type` supports `fixed`, `distance_based`, and `matrix`
 
-Fare configuration is data-driven. `passenger_types` contains discount rules, `fare_products` contains payment methods and eligible passenger types, and `fare_policies` contains policy media, optional passenger type, ordered station IDs, and fare values. Matrix policies use a square numeric `values` matrix whose row and column indexes follow the `stations` order. Values are preserved as supplied and are not discounted again by the API.
+Fare configuration is data-driven. `passenger_types` contains discount rules, `fare_products` contains payment methods and eligible passenger types, and `fare_policies` contains policy media, optional passenger type, ordered station IDs, and fare values. Matrix policies use a square numeric `values` matrix whose row and column indexes follow the `stations` order. Matrix values are final fares and are not discounted again by the API.
+
+Distance-based policies use `base_fare`, `base_distance_km`, `increment_fare`, `increment_distance_km`, optional `maximum_fare`, `rounding`, and `description`. The confirmed rounding rule is that `"rounding": "whole"` floors the discounted base fare to the nearest whole peso before distance increments are added. For example, PHP 17 with a 20% discount becomes PHP 13.60, then PHP 13. Additional started kilometers use ceiling: every partial kilometer beyond the base distance counts as one full increment, and those increments receive no additional passenger discount. `maximum_fare`, when present, is applied after the increments.
+
+For compatibility, `RouteStop.fare` remains the fallback when a route has no configured fare policy. The current API exports fare configuration but does not expose a separate runtime fare-lookup endpoint; fare configuration is loaded through the management command below.
+
+Fare configuration is imported with the transactional management command:
+
+```bash
+python manage.py import_fare_configuration path/to/fare_configuration.json --dry-run
+python manage.py import_fare_configuration path/to/fare_configuration.json
+```
+
+The importer accepts only the documented format, validates matrix dimensions and references, creates a separate `lrt1_beep_senior` policy by copying the confirmed student matrix when needed, and requires the senior passenger type to use a 50% discount. The import is idempotent and runs inside a transaction.
+
+Migration rollout for the distance-policy fields is additive:
+
+```bash
+python manage.py migrate
+python manage.py update_export_cache
+```
+
+Migration `0012` adds distance-based fare parameters. Migration `0013` makes policy media optional for distance-based policies. Existing route-stop fares and transport records are preserved.
 
 The narrower export endpoints include only the fields relevant to their scope:
 
@@ -1731,7 +1753,7 @@ The narrower export endpoints include only the fields relevant to their scope:
 
 #### Automatic Updates
 
-- Cache auto-refreshes when terminals or routes are verified by admin
+- Cache auto-refreshes when terminals/routes are verified or fare configuration records change
 - 5-minute cooldown between auto-updates to prevent excessive refreshes
 - Background threading ensures no blocking of admin operations
 - Updates triggered on `post_save` signal for Terminal and Route models

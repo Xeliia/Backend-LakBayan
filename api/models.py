@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db.models.signals import post_save
+from django.db.models.signals import m2m_changed, post_save
 from django.dispatch import receiver
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -189,6 +189,8 @@ class PassengerType(models.Model):
         super().clean()
         if self.discount_type == 'none' and self.discount_value != 0:
             raise ValidationError("A passenger type with no discount must have a value of 0.")
+        if self.code == 'senior' and self.discount_value != 50:
+            raise ValidationError("Senior passenger type must have a 50 percent discount.")
 
     def __str__(self):
         return self.code
@@ -203,7 +205,14 @@ class FarePolicy(models.Model):
 
     policy_id = models.CharField(max_length=100, primary_key=True)
     policy_type = models.CharField(max_length=20, choices=POLICY_TYPE_CHOICES)
-    media = models.CharField(max_length=100)
+    media = models.CharField(max_length=100, blank=True, default='')
+    base_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    base_distance_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    increment_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    increment_distance_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    maximum_fare = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    rounding = models.CharField(max_length=20, null=True, blank=True, choices=[('whole', 'Whole Peso (Floor)')])
+    description = models.TextField(blank=True, default='')
     passenger_type = models.ForeignKey(
         PassengerType,
         on_delete=models.SET_NULL,
@@ -215,10 +224,28 @@ class FarePolicy(models.Model):
 
     def clean(self):
         super().clean()
+        distance_fields = (
+            self.base_fare,
+            self.base_distance_km,
+            self.increment_fare,
+            self.increment_distance_km,
+        )
+        if self.policy_type == 'distance_based':
+            if any(value is None for value in distance_fields):
+                raise ValidationError(
+                    'Distance-based policies require base and increment fare parameters.'
+                )
+            if self.rounding != 'whole':
+                raise ValidationError('Distance-based policies must use whole-peso floor rounding.')
+        elif any(value is not None for value in distance_fields) or self.maximum_fare is not None or self.rounding:
+            raise ValidationError('Distance-based fare fields are only valid for distance-based policies.')
+
         if self.policy_type != 'matrix':
             return
 
         stations = list(self.stations.values_list('station_id', flat=True)) if self.pk else []  # type: ignore[attr-defined]
+        if not stations:
+            return
         matrix = self.values
         if not isinstance(matrix, list) or len(matrix) != len(stations):
             raise ValidationError("A matrix fare policy must have one row per station.")
@@ -342,6 +369,41 @@ def auto_update_cache_on_verify(sender, instance, created, **kwargs):
                 logger.error(f"Cache update failed: {str(e)}")
         
         Thread(target=update_cache, daemon=True).start()
+
+
+def trigger_export_cache_update(sender_name):
+    cache_key = 'export_cache_update_cooldown'
+    if cache.get(cache_key):
+        logger.info(f"Cache update on cooldown, skipping for {sender_name}")
+        return
+
+    cache.set(cache_key, True, 300)
+    logger.info(f"Triggering cache update for {sender_name}")
+
+    def update_cache():
+        try:
+            call_command('update_export_cache')
+            logger.info("Cache update completed successfully")
+        except Exception as e:
+            logger.error(f"Cache update failed: {str(e)}")
+
+    Thread(target=update_cache, daemon=True).start()
+
+
+@receiver(post_save, sender=PassengerType)
+@receiver(post_save, sender=FarePolicy)
+@receiver(post_save, sender=FarePolicyStation)
+@receiver(post_save, sender=FareProduct)
+def auto_update_cache_on_fare_change(sender, instance, **kwargs):
+    """Refresh cached fare configuration after fare data changes."""
+    trigger_export_cache_update(sender.__name__)
+
+
+@receiver(m2m_changed, sender=FareProduct.passenger_types.through)
+def auto_update_cache_on_fare_product_passengers(sender, **kwargs):
+    """Refresh cached fare configuration after product passenger changes."""
+    if kwargs.get('action') in {'post_add', 'post_remove', 'post_clear'}:
+        trigger_export_cache_update('FareProduct.passenger_types')
 
 # Lakbay Points (LP) System
 class GenderChoices(models.TextChoices):

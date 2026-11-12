@@ -240,6 +240,15 @@ class RouteContributionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Can only add routes to verified terminals")
         return value
 
+    def validate(self, attrs):
+        fare_policy = attrs.get('fare_policy')
+        mode = attrs.get('mode')
+        if fare_policy and mode and fare_policy.policy_type != mode.fare_type:
+            raise serializers.ValidationError({
+                'fare_policy': 'Fare policy type must match the transport mode fare type.'
+            })
+        return attrs
+
 class RouteStopContributionSerializer(serializers.ModelSerializer):
     class Meta:
         model = RouteStop
@@ -318,7 +327,24 @@ class FarePolicySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FarePolicy
-        fields = ['type', 'media', 'passenger_type', 'stations', 'values']
+        fields = [
+            'type', 'media', 'passenger_type', 'stations', 'values',
+            'base_fare', 'base_distance_km', 'increment_fare',
+            'increment_distance_km', 'maximum_fare', 'rounding', 'description',
+        ]
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if instance.policy_type == 'distance_based':
+            for field in ('stations', 'values'):
+                representation.pop(field, None)
+        else:
+            for field in (
+                'base_fare', 'base_distance_km', 'increment_fare',
+                'increment_distance_km', 'maximum_fare', 'rounding', 'description',
+            ):
+                representation.pop(field, None)
+        return representation
 
     def get_stations(self, obj):
         return list(obj.stations.values_list('station_id', flat=True))

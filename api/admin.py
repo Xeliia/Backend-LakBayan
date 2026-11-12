@@ -54,6 +54,11 @@ class FarePolicyAdmin(admin.ModelAdmin):
     list_display = ('policy_id', 'policy_type', 'media', 'passenger_type')
     list_filter = ('policy_type', 'media', 'passenger_type')
     search_fields = ('policy_id', 'media')
+    fields = (
+        'policy_id', 'policy_type', 'media', 'passenger_type', 'values',
+        'base_fare', 'base_distance_km', 'increment_fare',
+        'increment_distance_km', 'maximum_fare', 'rounding', 'description',
+    )
     inlines = [FarePolicyStationInline]
 
 

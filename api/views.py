@@ -680,10 +680,15 @@ def contribute_complete_route(request):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             fare_policy_id = data['route'].get('fare_policy')
-            if fare_policy_id and not FarePolicy.objects.filter(pk=fare_policy_id).exists():
-                return Response({
-                    'error': 'Fare policy does not exist'
-                }, status=status.HTTP_400_BAD_REQUEST)
+            fare_policy = None
+            if fare_policy_id:
+                try:
+                    fare_policy = FarePolicy.objects.get(pk=fare_policy_id)
+                except FarePolicy.DoesNotExist:
+                    return Response({'error': 'Fare policy does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                mode = ModeOfTransport.objects.get(pk=data['route']['mode'])
+                if fare_policy.policy_type != mode.fare_type:
+                    return Response({'error': 'Fare policy type must match the transport mode fare type.'}, status=status.HTTP_400_BAD_REQUEST)
             
             # 2. Create Route (unverified) - USE DIRECT MODEL CREATION
             route = Route.objects.create(
@@ -805,10 +810,14 @@ def contribute_all(request):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             fare_policy_id = route_data.get('fare_policy')
-            if fare_policy_id and not FarePolicy.objects.filter(pk=fare_policy_id).exists():
-                return Response({
-                    'error': 'Fare policy does not exist'
-                }, status=status.HTTP_400_BAD_REQUEST)
+            if fare_policy_id:
+                try:
+                    fare_policy = FarePolicy.objects.get(pk=fare_policy_id)
+                except FarePolicy.DoesNotExist:
+                    return Response({'error': 'Fare policy does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+                mode = ModeOfTransport.objects.get(pk=route_data['mode'])
+                if fare_policy.policy_type != mode.fare_type:
+                    return Response({'error': 'Fare policy type must match the transport mode fare type.'}, status=status.HTTP_400_BAD_REQUEST)
             
             route = Route.objects.create(
                 terminal=terminal,
